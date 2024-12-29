@@ -3,29 +3,27 @@
 
 Game::Game(int a_size)
 {
-	setActionSize(a_size);
-	reset();
-}
-
-void Game::reset()
-{
-	size_t size = action_size * 2;
-	boardArray = std::vector<int>(size, action_size);
-	player = player1_score = player2_score = 0;
-	tuzdyk1 = tuzdyk2 = -1;
-	semiMoves = fullMoves = 1;
-	lastMove = "";
+    setActionSize(a_size);
+    reset();
 }
 
 void Game::setActionSize(int a_size)
 {
-	if (a_size <= 1)
-	{
-		a_size = 9;
-	}
-	action_size = a_size;
+    action_size = std::clamp(a_size, 2, 100);
+    action_size = a_size;
     max_stones = a_size * a_size * 2;
     goal = a_size * a_size + 1;
+}
+
+
+void Game::reset()
+{
+    size_t size = action_size * 2;
+    boardArray = std::vector<int>(size, action_size);
+    player = player1_score = player2_score = 0;
+    tuzdyk1 = tuzdyk2 = -1;
+    semiMoves = fullMoves = 0;
+    lastMove = "";
 }
 
 void Game::showBoard() {
@@ -78,12 +76,7 @@ void Game::showBoard() {
 
     std::cout << "Player 1 Score: " << player1_score << "\n";
     std::cout << "__________________________\n";
-    std::cout << "Last Move: " << lastMove << "\n";
-}
-
-float Game::evaluate(int player)
-{
-    return 0;
+    std::cout << "Last Move: " << fullMoves << "." << lastMove << "\n";
 }
 
 int Game::getPlayerMovesCount(int player)
@@ -119,11 +112,11 @@ int Game::checkWinner()
     {
         return GAME_DRAW;
     }
-    else if (player1_score >= goal || player2_score < goal && isRowEmpty(BLACK))
+    else if (player1_score >= goal || (player2_score < goal && isRowEmpty(BLACK)))
     {
         return GAME_WHITE_WIN;
     }
-    else if (player2_score >= goal || player1_score < goal && isRowEmpty(WHITE))
+    else if (player2_score >= goal || (player1_score < goal && isRowEmpty(WHITE)))
     {
         return GAME_BLACK_WIN;
     }
@@ -187,9 +180,10 @@ std::vector<int> Game::getPossibleMoves()
     {
         if (!isPitEmpty(i))
         {
-            moves.push_back(i);
+            moves.push_back(i % action_size);
         }
     }
+    return moves;
 }
 
 void Game::switchPlayer()
@@ -198,11 +192,11 @@ void Game::switchPlayer()
 }
 bool Game::makeMove(int x)
 {
+    x += (action_size * player);
     if (!isValidMove(x) || checkWinner() != GAME_CONTINUE)
     {
         return false;
     }
-    int aPlayer = x < action_size ? WHITE : BLACK;
     int stonesInArm = 0;
     lastMove = std::to_string((x % action_size + 1));
     if (getStoneCountAtPit(x) > 1)
@@ -256,14 +250,159 @@ bool Game::makeMove(int x)
         if (player == WHITE && action_size <= x && x < action_size * 2)
         {
             player1_score += boardArray[x];
+            boardArray[x] = 0;
         }
         else if (player == BLACK && 0 <= x && x < action_size)
         {
-            player1_score += boardArray[x];
+            player2_score += boardArray[x];
+            boardArray[x] = 0;
         }
     }
-    fullMoves += player;
+    fullMoves += 1 - player;
+    semiMoves++;
     switchPlayer();
     lastMove += std::to_string(x % action_size + 1);
     return true;
+}
+
+Game::board Game::copyBoard()
+{
+    return Game::board(boardArray);
+}
+
+Game* Game::copyGame() {
+    // Create a new Game object on the heap
+    Game* copied_game = new Game(this->action_size);
+    copied_game->boardArray = this->copyBoard(); // Copy the board
+    copied_game->player = this->player; // Copy the current player
+    copied_game->player1_score = this->player1_score; // Copy scores
+    copied_game->player2_score = this->player2_score;
+    copied_game->tuzdyk1 = this->tuzdyk1; // Copy additional game state
+    copied_game->tuzdyk2 = this->tuzdyk2;
+    copied_game->semiMoves = this->semiMoves;
+    copied_game->fullMoves = this->fullMoves;
+    copied_game->lastMove = this->lastMove; // Copy last move
+    // Copy any other necessary attributes
+    return copied_game;
+}
+
+float Game::evaluate(int player)
+{
+    int half = action_size / 2;
+    int winner = checkWinner();
+    float win_factor = 0.0f;
+    float score_factor = 0.0f;
+    float tuzdyk_factor = 0.0f;
+    float possible_moves_factor = getPlayerMovesCount(player);
+    float row_stones_factor = getPlayerRowStones(player) - getPlayerRowStones(1 - player);
+    if (goal == 0 || max_stones == 0) {
+        return 0;
+    }
+
+    if (player == WHITE)
+    {
+        score_factor = player1_score - player2_score;
+        if (winner == WHITE)
+        {
+            win_factor = max_stones - player1_score;
+        }
+        else if (winner == BLACK)
+        {
+            win_factor = player1_score - max_stones;
+        }
+        if (tuzdyk1 != -1)
+        {
+            tuzdyk_factor += (half - std::abs(tuzdyk1 - half)) * half;
+        }
+        if (tuzdyk2 != -1)
+        {
+            tuzdyk_factor -= (half - std::abs(tuzdyk2 - half)) * half;
+        }
+    }
+    else if (player == BLACK)
+    {
+        score_factor = player2_score - player1_score;
+        if (winner == WHITE)
+        {
+            win_factor = max_stones - player2_score;
+        }
+        else if (winner == BLACK)
+        {
+            win_factor = player2_score - max_stones;
+        }
+        if (tuzdyk2 != -1)
+        {
+            tuzdyk_factor += (half - std::abs(tuzdyk2 - half)) * half;
+        }
+        if (tuzdyk1 != -1)
+        {
+            tuzdyk_factor -= (half - std::abs(tuzdyk1 - half)) * half;
+        }
+    }
+
+    if (winner == GAME_DRAW)
+    {
+        win_factor += max_stones / action_size;
+    }
+
+    float score = score_factor / goal +
+        row_stones_factor / max_stones +
+        tuzdyk_factor / goal +
+        possible_moves_factor / action_size;
+    float symbol = score >= 0 ? 1.0f : -1.0f;
+    float eval_result = symbol * std::sqrt(std::abs(score)) + (win_factor / goal);
+
+    return eval_result;
+}
+
+float minimax(Game* game, int player, int depth, float alpha, float beta)
+{
+    float eval = 0;
+    float max_eval = -std::numeric_limits<float>::infinity();
+    float min_eval = std::numeric_limits<float>::infinity();
+
+    if (depth <= 0 || game->checkWinner() != GAME_CONTINUE)
+    {
+        float eval = game->evaluate(player);
+        return eval;
+    }
+
+    std::vector<int> actions = game->getPossibleMoves();
+
+    if (game->player == player)
+    {
+        for (int i = 0; i < actions.size(); ++i)
+        {
+            int move = actions[i];
+            Game* game_copy = game->copyGame();
+            game_copy->makeMove(move);
+            eval = minimax(game_copy, player, depth - 1, alpha, beta);
+            max_eval = std::max(max_eval, eval);
+            alpha = std::max(alpha, eval);
+            delete game_copy;
+            if (beta <= alpha)
+            {
+                break;
+            }
+        }
+        return max_eval;
+    }
+    else
+    {
+        for (int i = 0; i < actions.size(); ++i)
+        {
+            int move = actions[i];
+            Game* game_copy = game->copyGame();
+            game_copy->makeMove(move);
+            eval = minimax(game_copy, player, depth - 1, alpha, beta);
+            min_eval = std::min(min_eval, eval);
+            beta = std::min(beta, eval);
+            delete game_copy;
+            if (beta <= alpha)
+            {
+                break;
+            }
+        }
+        return min_eval;
+    }
 }

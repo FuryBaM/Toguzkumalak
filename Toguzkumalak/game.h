@@ -4,6 +4,7 @@
 #include <array>
 #include <string>
 #include <algorithm>
+#include <cmath>
 
 #define WHITE 0
 #define BLACK 1
@@ -34,8 +35,8 @@ public:
 
 	Game(int action_size = 9);
 	~Game() = default;
-	void reset();
 	void setActionSize(int value);
+	void reset();
 	void showBoard();
 	float evaluate(int player);
 	int getPlayerMovesCount(int player);
@@ -49,8 +50,7 @@ public:
 	std::vector<int> getPossibleMoves();
 	void switchPlayer();
 	bool makeMove(int x);
-	Game copyGame();
+	Game* copyGame();
 	std::vector<int> copyBoard();
 };
-float minimax(Game game, int player, int depth, float alpha, float beta);
-
+float minimax(Game* game, int player, int depth, float alpha, float beta);
