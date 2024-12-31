@@ -36,7 +36,7 @@ std::pair<float, UCTNode*> UCT_search(Game* game, int num_reads, std::pair<std::
     UCTNode* leaf;
     std::vector<float> child_priors;
     float value_estimate;
-    root = new UCTNode(game->copyGame(), -1, nullptr, selfplay);
+    root = new UCTNode(game, -1, new UCTNode(game, -1, nullptr, selfplay), selfplay);
     Game* copied_game;
     for (int i = 0; i < num_reads; ++i)
     {
@@ -64,10 +64,11 @@ int main()
     while (game.checkWinner() == GAME_CONTINUE)
     {
         //move = getMove(&game, 2);
-        std::pair<float, UCTNode*> result = UCT_search(&game, 800, net, false);
+        std::pair<float, UCTNode*> result = UCT_search(game.copyGame(), 800, net, false);
         move = result.first;
         game.makeMove(move);
         game.showBoard();
+        delete result.second;
     }
     std::string win_msg = "Unknown";
     switch (game.checkWinner())

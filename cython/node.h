@@ -2,7 +2,6 @@
 #include "game.h"
 #include <unordered_map>
 #include <random>
-#include <memory>
 class UCTNode
 {
 public:
@@ -11,39 +10,44 @@ public:
 	int move;
 	bool is_expanded;
 	bool self_play;
-	std::shared_ptr<UCTNode> parent;
-	std::unordered_map<int, std::shared_ptr<UCTNode>> children;
+	UCTNode* parent;
+	std::unordered_map<int, UCTNode*> children;
 	std::vector<float> child_priors;
 	std::vector<float> child_total_value;
 	std::vector<float> child_number_visits;
 	std::vector<int> action_idxes;
 	float a;
 
-	UCTNode(Game* game, int move, UCTNode* parent, bool selfplay);
+	UCTNode(Game* game, int move = -1, UCTNode* parent = nullptr, bool selfplay = false);
+	void DestroyAllChildren();
 	~UCTNode();
 	float getNumberVisits()
 	{
+		if (move == -1) return 0.0f;
 		return parent->child_number_visits[move];
 	}
 	void setNumberVisits(float value)
 	{
+		if (move == -1) return;
 		parent->child_number_visits[move] = value;
 	}
 	float getTotalValue()
 	{
+		if (move == -1) return 0.0f;
 		return parent->child_total_value[move];
 	}
 	void setTotalValue(float value)
 	{
+		if (move == -1) return;
 		parent->child_total_value[move] = value;
 	}
 	std::vector<float> child_Q();
 	std::vector<float> child_U();
 	int best_child();
-	std::shared_ptr<UCTNode> select_leaf();
+	UCTNode* select_leaf();
 	std::vector<float> add_dirichlet_noise(std::vector<int> action_idxs, std::vector<float> child_priors);
 	void expand(std::vector<float> child_priors);
-	std::shared_ptr<UCTNode> try_add_child(int move);
+	UCTNode* try_add_child(int move);
 	void backup(float value_estimate);
 };
 template <typename T>
@@ -117,9 +121,9 @@ std::vector<T> addNumberToVector(const std::vector<T>& v, T number)
 	size_t size = result.size();
 	for (size_t i = 0; i < size; ++i)
 	{
-		result[i] += number;  // Ð´Ð¾Ð±Ð°Ð²Ð»ÑÐµÐ¼ Ñ‡Ð¸ÑÐ»Ð¾ ÐºÐ¾ Ð²ÑÐµÐ¼ ÑÐ»ÐµÐ¼ÐµÐ½Ñ‚Ð°Ð¼
+		result[i] += number;  // äîáàâëÿåì ÷èñëî êî âñåì ýëåìåíòàì
 	}
-	return result;  // Ð²Ð¾Ð·Ð²Ñ€Ð°Ñ‰Ð°ÐµÐ¼ Ð¸Ð·Ð¼ÐµÐ½ÐµÐ½Ð½Ñ‹Ð¹ Ð²ÐµÐºÑ‚Ð¾Ñ€
+	return result;  // âîçâðàùàåì èçìåíåííûé âåêòîð
 }
 
 template <typename T>
@@ -144,5 +148,5 @@ bool contains(const std::unordered_map<K, V>& map, const K& key) {
 }
 
 int argmax(const std::vector<float>& vec);
-int argmax(const std::vector<float>& vec, const std::vector<int>& indices);
+int argmax(std::vector<float> vec, std::vector<int> indices);
 std::vector<float> generate_dirichlet_noise(size_t size);

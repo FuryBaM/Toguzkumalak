@@ -19,25 +19,26 @@ public:
 	float a;
 
 	UCTNode(Game* game, int move = -1, UCTNode* parent = nullptr, bool selfplay = false);
+	void DestroyAllChildren();
 	~UCTNode();
 	float getNumberVisits()
 	{
-		//if (parent == nullptr || (parent != nullptr && parent->child_number_visits.size() > move)) return 0.0f;
+		if (move == -1) return 0.0f;
 		return parent->child_number_visits[move];
 	}
 	void setNumberVisits(float value)
 	{
-		if (parent == nullptr) return;
+		if (move == -1) return;
 		parent->child_number_visits[move] = value;
 	}
 	float getTotalValue()
 	{
-		if (parent == nullptr || (parent != nullptr && parent->child_total_value.size() > move)) return 0.0f;
+		if (move == -1) return 0.0f;
 		return parent->child_total_value[move];
 	}
 	void setTotalValue(float value)
 	{
-		if (parent == nullptr) return;
+		if (move == -1) return;
 		parent->child_total_value[move] = value;
 	}
 	std::vector<float> child_Q();
@@ -147,5 +148,5 @@ bool contains(const std::unordered_map<K, V>& map, const K& key) {
 }
 
 int argmax(const std::vector<float>& vec);
-int argmax(const std::vector<float>& vec, const std::vector<int>& indices);
+int argmax(std::vector<float> vec, std::vector<int> indices);
 std::vector<float> generate_dirichlet_noise(size_t size);
