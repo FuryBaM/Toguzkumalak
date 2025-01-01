@@ -1,4 +1,4 @@
-#pragma once
+п»ї#pragma once
 #include "game.h"
 #include <unordered_map>
 #include <random>
@@ -18,7 +18,7 @@ public:
 	std::vector<int> action_idxes;
 	float a;
 
-	UCTNode(Game* game, int move = -1, UCTNode* parent = nullptr, bool selfplay = false);
+	UCTNode(Game* game, int move, UCTNode* parent, bool selfplay);
 	void DestroyAllChildren();
 	~UCTNode();
 	float getNumberVisits()
@@ -121,9 +121,9 @@ std::vector<T> addNumberToVector(const std::vector<T>& v, T number)
 	size_t size = result.size();
 	for (size_t i = 0; i < size; ++i)
 	{
-		result[i] += number;  // добавляем число ко всем элементам
+		result[i] += number;  // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
 	}
-	return result;  // возвращаем измененный вектор
+	return result;  // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ
 }
 
 template <typename T>
