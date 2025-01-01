@@ -3,6 +3,7 @@ from libcpp.string cimport string
 from libc.stdlib cimport malloc
 from libc.stdlib cimport free
 from libcpp cimport bool
+
 cdef extern from "game.h":
     float minimax(Game* game, int player, int depth, float alpha, float beta)
     cdef cppclass Game:

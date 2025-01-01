@@ -6,6 +6,7 @@ from libcpp.memory cimport shared_ptr, make_shared
 import numpy as np
 cimport numpy as np
 from game_cython cimport Game, minimax
+from node_cython cimport UCTNode
 cimport cython
 np.import_array()
 
@@ -202,132 +203,24 @@ cdef class PyGame:
     def copy_board(self):
         return list(self.thisptr.copyBoard())
 
-cdef class UCTNode:
-    cdef public PyGame game
-    cdef public int action_size
-    cdef public int move
-    cdef public int is_expanded
-    cdef public int self_play
-    cdef public UCTNode parent
-    cdef public dict children
-    cdef public float [:] child_priors
-    cdef public float [:] child_total_value
-    cdef public float [:] child_number_visits
-    cdef public list action_idxes
-    cdef public float a
-
-    def __cinit__(self, PyGame game, int move = -1, UCTNode parent=None, int self_play = 1):
-        self.game = game
-        self.action_size = game.action_size
-        self.move = move
-        self.is_expanded = 0
-        self.self_play = self_play
-        self.parent = parent
-        self.children = {}
-        self.child_priors = np.zeros(self.action_size, dtype=np.float32)
-        self.child_total_value = np.zeros(self.action_size, dtype=np.float32)
-        self.child_number_visits = np.zeros(self.action_size, dtype=np.float32)
-        self.action_idxes = []
-        self.a = 10.0/self.action_size
-
-    property number_visits:
-        def __get__(self):
-            return self.parent.child_number_visits[self.move]
-        def __set__(self, float value):
-            self.parent.child_number_visits[self.move] = value
-
-    property total_value:
-        def __get__(self):
-            return self.parent.child_total_value[self.move]
-        def __set__(self, float value):
-            self.parent.child_total_value[self.move] = value
-            
-    @cython.wraparound(False)
-    cdef np.ndarray[np.float32_t, ndim = 1] child_Q(self):
-        return np.array(self.child_total_value) / (1 + np.array(self.child_number_visits))
-        
-    @cython.wraparound(False)
-    cdef np.ndarray[np.float32_t, ndim = 1] child_U(self):
-        return sqrt(self.number_visits) * (abs(np.array(self.child_priors)) / (1 + np.array(self.child_number_visits)))
-        
-    @cython.wraparound(False)
-    cdef int best_child(self):
-        cdef np.ndarray[np.float32_t, ndim = 1] q_plus_u = self.child_Q() + self.child_U()
-        cdef np.ndarray[np.float32_t, ndim = 1] actions
-        cdef int bestmove
-        cdef int i, idx
-        if len(self.action_idxes) != 0:
-            bestmove = self.action_idxes[np.argmax(q_plus_u[self.action_idxes])]
-        else:
-            bestmove = np.argmax(q_plus_u)
-        return bestmove
-        
-    @cython.wraparound(False)
-    cdef UCTNode select_leaf(self):
-        cdef UCTNode current = self
-        cdef int best_move = 0
-        while current.is_expanded:
-            best_move = current.best_child()
-            current = current.maybe_add_child(best_move)
-        return current
-        
-    @cython.wraparound(False)
-    cdef np.ndarray[np.float32_t, ndim = 1] add_dirichlet_noise(self, list action_idxs, np.ndarray[np.float32_t, ndim = 1] child_priors):
-        cdef np.ndarray[np.float32_t, ndim = 1] valid_child_priors = child_priors[action_idxs]
-        cdef int i, idx
-        valid_child_priors = np.zeros(len(action_idxs), dtype=np.float32)
-        cdef np.ndarray[np.float32_t, ndim = 1] dirichlet_noise = np.random.dirichlet(np.zeros(len(valid_child_priors), dtype=np.float32) + self.a).astype(np.float32)
-        valid_child_priors = 0.75 * valid_child_priors + 0.25 * dirichlet_noise
-        child_priors[action_idxs] = valid_child_priors
-        return child_priors
-        
-    @cython.wraparound(False)
-    cdef void expand(self, np.ndarray[np.float32_t, ndim = 1] child_priors):
-        self.is_expanded = 1
-        cdef int i
-        cdef list action_idxs = []
-        cdef np.ndarray[np.float32_t, ndim = 1] c_p = child_priors
-        cdef list possible_actions = self.game.get_possible_moves()
-        for action in possible_actions:
-            action_idxs.append(action)
-        if len(action_idxs) == 0:
-            self.is_expanded = 0
-        self.action_idxes = action_idxs
-        for i in range(len(child_priors)):
-            if i not in action_idxs:
-                c_p[i] = 0.0000000000
-        if self.parent.parent is None and self.self_play:
-            c_p = self.add_dirichlet_noise(action_idxs, c_p)
-        self.child_priors = c_p
-        
-    @cython.wraparound(False)
-    cdef UCTNode maybe_add_child(self, int move):
-        if move not in self.children:
-            copy_board = self.game.copyGame()
-            copy_board.make_move(move)
-            self.children[move] = UCTNode(copy_board, move, self, self.self_play)
-        return self.children[move]
-        
-    @cython.wraparound(False)
-    cdef backup(self, float value_estimate):
-        cdef UCTNode current = self
-        while current.parent is not None:
-            current.number_visits += 1
-            if current.game.player == 1:
-                current.total_value += (1 * value_estimate)
-            elif current.game.player == 0:
-                current.total_value += (-1 * value_estimate)
-            current = current.parent
+cdef public np.ndarray vector_to_numpy(list vec):
+    cdef int n = len(vec)
+    cdef np.ndarray[np.float32_t, ndim=1] result = np.zeros(n, dtype=np.float32)
+    for i in range(n):
+        result[i] = vec[i]
+    return result
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-cpdef np.ndarray[np.float32_t, ndim=1] get_policy(UCTNode root, float temperature=1.0):
+cdef np.ndarray[np.float32_t, ndim=1] get_policy(UCTNode* root, float temperature=1.0):
     """
     Возвращает вероятности политики, рассчитанные на основе числа посещений.
     """
+    cdef np.ndarray[np.float32_t, ndim=1] child_number_visits = vector_to_numpy(root.child_number_visits)
     cdef np.ndarray[np.float32_t, ndim=1] probabilities = softmax(
-        1.0 / temperature * np.log(np.array(root.child_number_visits) + 1e-10)
+        1.0 / temperature * np.log(np.array(child_number_visits) + 1.0)
     )
+    del root
     return probabilities
 
 @cython.boundscheck(False)
@@ -373,33 +266,41 @@ cpdef UCT_search(PyGame game, int num_reads, net_func, int self_play=1):
     Реализация алгоритма UCT для выполнения поиска.
     """
     cdef int i
-    cdef UCTNode root
-    cdef UCTNode leaf
+    cdef UCTNode* root
+    cdef UCTNode* dummy
+    cdef UCTNode* leaf
     cdef vector[float] child_priors
     cdef float value_estimate
+    cdef PyGame py_game_copy
 
     # Создаём корневой узел дерева
-    root = UCTNode(game, -1, None, self_play)
-    cdef PyGame py_game_copy
-    
+    dummy = new UCTNode(game=game.thisptr, move=-1, parent=NULL, self_play=self_play)
+    root = new UCTNode(game=game.thisptr, move=-1, parent=dummy, self_play=self_play)
+
     for i in range(num_reads):
         # Выбираем лист
         leaf = root.select_leaf()
+        
         # Генерация child_priors и value_estimate через нейросетевую функцию
-        py_game_copy = leaf.game.copy_game()
+        py_game_copy = PyGame(game.thisptr.action_size)
+        py_game_copy.thisptr = leaf.game
         child_priors, value_estimate = net_func(py_game_copy)
+        
         # Если игра завершена, то возвращаем оценку обратно по дереву
-        if leaf.game.check_winner() != -1:
-            print("backup start")
+        if leaf.game.checkWinner() != -1:
             leaf.backup(value_estimate)
-            print("backup end")
             continue
+        
         # Расширяем дерево и обновляем значения
-        print("check start expand")
         leaf.expand(np.array(child_priors, dtype=np.float32))
-        print("check1")
         leaf.backup(value_estimate)
-        print("check2")
-    print("check-end")
-    # Возвращаем лучшую найденную политику и корень дерева
-    return np.argmax(root.child_number_visits), root
+    
+    # Получаем политику перед удалением root
+    cdef np.ndarray[np.float32_t, ndim=1] policy = get_policy(root)
+
+    # Удаляем узлы дерева
+    root.DestroyAllChildren()  # Рекурсивно удаляет все дочерние узлы
+    del root
+    del dummy
+
+    return np.argmax(policy), policy

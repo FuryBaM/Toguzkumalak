@@ -30,7 +30,7 @@ void Game::showBoard() {
     std::string player1Row = "";
     std::string player2Row = "";
 
-    // Формирование строки для Player 1
+    // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ Player 1
     for (int i = 0; i < action_size; ++i) {
         if (tuzdyk2 != i) {
             player1Row += std::to_string(boardArray[i]) + " ";
@@ -40,7 +40,7 @@ void Game::showBoard() {
         }
     }
 
-    // Формирование строки для Player 2
+    // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ Player 2
     for (int i = action_size * 2 - 1; i >= action_size; --i) {
         if (tuzdyk1 != i) {
             player2Row += std::to_string(boardArray[i]) + " ";
@@ -50,25 +50,25 @@ void Game::showBoard() {
         }
     }
 
-    // Вывод на экран
+    // пїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅ
     std::cout << "__________________________\n";
     std::cout << "Move: " << semiMoves << "\n";
     std::cout << "Makes move: " << player << "\n";
     std::cout << "Player 2 Score: " << player2_score << "\n";
 
-    // Номера сверху (доска Player 2)
+    // пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ (пїЅпїЅпїЅпїЅпїЅ Player 2)
     for (int i = action_size; i > 0; --i) {
         std::cout << i << " ";
     }
     std::cout << "\n\n";
 
-    // Доска Player 2
+    // пїЅпїЅпїЅпїЅпїЅ Player 2
     std::cout << player2Row << "\n";
 
-    // Доска Player 1
+    // пїЅпїЅпїЅпїЅпїЅ Player 1
     std::cout << player1Row << "\n\n";
 
-    // Номера снизу (доска Player 1)
+    // пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ (пїЅпїЅпїЅпїЅпїЅ Player 1)
     for (int i = 1; i <= action_size; ++i) {
         std::cout << i << " ";
     }
@@ -144,7 +144,7 @@ bool Game::isValidMove(int x)
 bool Game::isPitEmpty(int x)
 {
     if (0 <= x && x < action_size * 2) {
-        return boardArray[x] == 0;  // Яма пуста, если значение равно 0
+        return boardArray[x] == 0;  // пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ, пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ 0
     }
     throw std::out_of_range("Pit index out of range");
 }
@@ -293,22 +293,22 @@ float Game::evaluate(int player)
     float win_factor = 0.0f;
     float score_factor = 0.0f;
     float tuzdyk_factor = 0.0f;
-    float possible_moves_factor = getPlayerMovesCount(player);
-    float row_stones_factor = getPlayerRowStones(player) - getPlayerRowStones(1 - player);
+    float possible_moves_factor = (float)getPlayerMovesCount(player);
+    float row_stones_factor = (float)getPlayerRowStones(player) - (float)getPlayerRowStones(1 - player);
     if (goal == 0 || max_stones == 0) {
         return 0;
     }
 
     if (player == WHITE)
     {
-        score_factor = player1_score - player2_score;
+        score_factor = (float)player1_score - (float)player2_score;
         if (winner == WHITE)
         {
-            win_factor = max_stones - player1_score;
+            win_factor = (float)max_stones - (float)player1_score;
         }
         else if (winner == BLACK)
         {
-            win_factor = player1_score - max_stones;
+            win_factor = (float)player1_score - (float)max_stones;
         }
         if (tuzdyk1 != -1)
         {
@@ -321,14 +321,14 @@ float Game::evaluate(int player)
     }
     else if (player == BLACK)
     {
-        score_factor = player2_score - player1_score;
+        score_factor = (float)player2_score - (float)player1_score;
         if (winner == WHITE)
         {
-            win_factor = max_stones - player2_score;
+            win_factor = (float)max_stones - (float)player2_score;
         }
         else if (winner == BLACK)
         {
-            win_factor = player2_score - max_stones;
+            win_factor = (float)player2_score - (float)max_stones;
         }
         if (tuzdyk2 != -1)
         {

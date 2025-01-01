@@ -5,7 +5,7 @@ import os
 
 # Указание всех необходимых файлов
 source_files = [
-    "game.cpp", "node_cython.pyx"
+    "game.cpp", "node.cpp", "node_cython.pyx"
 ]
 
 # Указание директорий для включения заголовочных файлов C++

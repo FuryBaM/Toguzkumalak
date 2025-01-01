@@ -17,17 +17,17 @@ UCTNode::UCTNode(Game* game, int move, UCTNode* parent, bool selfplay)
 	child_total_value = std::vector<float>(action_size, 0);
 	child_number_visits = std::vector<float>(action_size, 0);
 	action_idxes = std::vector<int>();
-	a = 10.0 / action_size;
+	a = 10.0f / action_size;
 }
 
 void UCTNode::DestroyAllChildren() {
     for (auto& child : children) {
         if (child.second) {
-            child.second->DestroyAllChildren(); // Удаляем потомков рекурсивно
-            delete child.second; // Удаляем текущий дочерний узел
+            child.second->DestroyAllChildren(); // пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
+            delete child.second; // пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ
         }
     }
-    children.clear(); // Очищаем карту
+    children.clear(); // пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ
 }
 
 UCTNode::~UCTNode()
@@ -185,7 +185,7 @@ int argmax(std::vector<float> vec, std::vector<int> indices) {
 		throw std::invalid_argument("Indices vector is empty");
 	}
 
-	// Проверяем, что все индексы находятся в пределах вектора vec
+	// пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ, пїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ vec
 	for (int idx : indices) {
 		if (idx < 0 || idx >= vec.size()) {
 			throw std::out_of_range("Index out of range in indices vector");
@@ -207,16 +207,16 @@ int argmax(std::vector<float> vec, std::vector<int> indices) {
 std::vector<float> generate_dirichlet_noise(size_t size) {
 	std::random_device rd;
 	std::mt19937 gen(rd());
-	std::gamma_distribution<float> dist(1.0f, 1.0f); // Параметры для гамма-распределения
+	std::gamma_distribution<float> dist(1.0f, 1.0f); // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ-пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
 
 	std::vector<float> noise(size);
 	float sum = 0.0f;
 	for (size_t i = 0; i < size; ++i) {
-		noise[i] = dist(gen); // Генерация случайного значения для Дирихле
+		noise[i] = dist(gen); // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ
 		sum += noise[i];
 	}
 
-	// Нормализация, чтобы сумма была равна 1
+	// пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ, пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ 1
 	for (size_t i = 0; i < size; ++i) {
 		noise[i] /= sum;
 	}

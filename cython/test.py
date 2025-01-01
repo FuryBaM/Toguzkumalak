@@ -27,5 +27,6 @@ print(encodeBoard(game))
 def net_func(game):
     return np.array([1, 1, 1, 1, 1, 1, 1, 1, 1], dtype=np.float32), 0.5
 print(net_func(game))
-res = UCT_search(game, 800, net_func, False)
+res = UCT_search(game, 20000, net_func, False)
 print(res[0])
+print(res[1])
