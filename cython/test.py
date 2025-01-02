@@ -36,14 +36,13 @@ def getMove(game, depth = 8):
 # while game.check_winner() == -1:
 #     game.show_board()
 #     game.make_move(getMove(game, 1))
-# game.show_board()
-
+# game.show_board()-
 game = PyGame(9)
 print(encodeBoard(game))
 print(net_func(game))
 while game.check_winner() == -1:
     game.show_board()
-    res = UCT_search(game, 800, net_func, False)
-    print("Result", res[0])
-    game.make_move(res[0])
+    res, policy = UCT_search(game, 800, net_func, False)
+    print("Result", res, policy)
+    game.make_move(res)
 game.show_board()

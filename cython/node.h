@@ -13,6 +13,7 @@ public:
 	int move;
 	bool is_expanded;
 	bool self_play;
+	bool is_root;
 	UCTNode* parent;
 	std::unordered_map<int, UCTNode*> children;
 	std::vector<float> child_priors;
@@ -21,7 +22,7 @@ public:
 	std::vector<int> action_idxes;
 	float a = 0.0f;
 
-	UCTNode(Game* game, int move, UCTNode* parent, bool selfplay);
+	UCTNode(Game* game, int move, UCTNode* parent, bool selfplay, bool is_root);
 	void destroyChildren();
 	void destroyAllChildren();
 	~UCTNode();

@@ -6,18 +6,28 @@
 #include <iostream>
 
 
-UCTNode::UCTNode(Game* game, int move, UCTNode* parent, bool selfplay) : game(game), move(move), parent(parent), self_play(selfplay)
+UCTNode::UCTNode(Game* game, int move, UCTNode* parent, bool selfplay, bool is_root) : game(game), move(move), parent(parent), self_play(selfplay), is_root(is_root)
 {
 	this->game = game;
 	this->move = move;
 	this->parent = parent;
 	this->self_play = selfplay;
+	this->is_root = is_root;
 	is_expanded = 0;
 	action_size = game->action_size;
 	children = {};
-	child_priors = std::vector<float>(action_size, 0);
-	child_total_value = std::vector<float>(action_size, 0);
-	child_number_visits = std::vector<float>(action_size, 0);
+	if (parent) 
+	{
+		child_priors = std::vector<float>(action_size, 0);
+		child_total_value = std::vector<float>(action_size, 0);
+		child_number_visits = std::vector<float>(action_size, 0);
+	}
+	else if (parent == nullptr)
+	{
+		child_priors = {};
+		child_total_value = {};
+		child_number_visits = {};
+	}
 	action_idxes = std::vector<int>();
 	a = 10.0f / action_size;
 }
@@ -33,14 +43,18 @@ void UCTNode::destroyAllChildren()
 	{
 		if (child.second)
 		{
-			delete child.second->game;
+			child.second->destroyAllChildren();
 			delete child.second;
 		}
 	}
 }
 
 UCTNode::~UCTNode(){
-	destroyChildren();
+	if (is_root)
+	{
+		destroyAllChildren();
+	}
+	delete game;
 }
 
 std::vector<float> UCTNode::child_Q() {
@@ -145,7 +159,7 @@ void UCTNode::expand(std::vector<float> child_priors)
 	}
 	if (this->parent->parent == nullptr && self_play)
 	{
-		c_p = add_dirichlet_noise(action_idxs, c_p);
+		c_p = this->add_dirichlet_noise(action_idxs, c_p);
 	}
 	child_priors = c_p;
 }
@@ -157,7 +171,7 @@ UCTNode* UCTNode::try_add_child(int move)
 		Game* copy_game = game->copyGamePtr();
 		copy_game->makeMove(move);
 		UCTNode* parent = this;
-		children[move] = new UCTNode(copy_game, move, parent, self_play);
+		children[move] = new UCTNode(copy_game, move, parent, self_play, false);
 	}
 	return children[move];
 }
