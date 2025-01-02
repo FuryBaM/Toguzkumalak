@@ -1,10 +1,12 @@
 #include "node.h"
 #include <stdexcept>
 #include <limits>
+#include <bit>
 #include <memory>
+#include <iostream>
 
 
-UCTNode::UCTNode(Game* game, int move, UCTNode* parent, bool selfplay)
+UCTNode::UCTNode(Game* game, int move, UCTNode* parent, bool selfplay) : game(game), move(move), parent(parent), self_play(selfplay)
 {
 	this->game = game;
 	this->move = move;
@@ -12,7 +14,7 @@ UCTNode::UCTNode(Game* game, int move, UCTNode* parent, bool selfplay)
 	this->self_play = selfplay;
 	is_expanded = 0;
 	action_size = game->action_size;
-	children = std::unordered_map<int, UCTNode*>();
+	children = {};
 	child_priors = std::vector<float>(action_size, 0);
 	child_total_value = std::vector<float>(action_size, 0);
 	child_number_visits = std::vector<float>(action_size, 0);
@@ -20,20 +22,25 @@ UCTNode::UCTNode(Game* game, int move, UCTNode* parent, bool selfplay)
 	a = 10.0f / action_size;
 }
 
-void UCTNode::DestroyAllChildren() {
-    for (auto& child : children) {
-        if (child.second) {
-            child.second->DestroyAllChildren(); // ������� �������� ����������
-            delete child.second; // ������� ������� �������� ����
-        }
-    }
-    children.clear(); // ������� �����
+void UCTNode::destroyChildren()
+{
+	children.clear();
 }
 
-UCTNode::~UCTNode()
+void UCTNode::destroyAllChildren()
 {
-	DestroyAllChildren();
-	delete game;
+	for (auto child : children)
+	{
+		if (child.second)
+		{
+			delete child.second->game;
+			delete child.second;
+		}
+	}
+}
+
+UCTNode::~UCTNode(){
+	destroyChildren();
 }
 
 std::vector<float> UCTNode::child_Q() {
@@ -85,7 +92,7 @@ int UCTNode::best_child()
 UCTNode* UCTNode::select_leaf()
 {
 	UCTNode* current = this;
-	int bestmove = 0;
+	int bestmove;
 	while (current->is_expanded)
 	{
 		bestmove = current->best_child();
@@ -147,9 +154,10 @@ UCTNode* UCTNode::try_add_child(int move)
 {
 	if (!contains(children, move))
 	{
-		Game* copy_game = game->copyGame();
+		Game* copy_game = game->copyGamePtr();
 		copy_game->makeMove(move);
-		children[move] = new UCTNode(copy_game, move, this, self_play);
+		UCTNode* parent = this;
+		children[move] = new UCTNode(copy_game, move, parent, self_play);
 	}
 	return children[move];
 }
@@ -178,30 +186,6 @@ int argmax(const std::vector<float>& vec) {
 	}
 
 	return std::distance(vec.begin(), std::max_element(vec.begin(), vec.end()));
-}
-
-int argmax(std::vector<float> vec, std::vector<int> indices) {
-	if (indices.empty()) {
-		throw std::invalid_argument("Indices vector is empty");
-	}
-
-	// ���������, ��� ��� ������� ��������� � �������� ������� vec
-	for (int idx : indices) {
-		if (idx < 0 || idx >= vec.size()) {
-			throw std::out_of_range("Index out of range in indices vector");
-		}
-	}
-
-	float max_val = vec[indices[0]];
-	int best_idx = indices[0];
-	for (int idx : indices) {
-		if (vec[idx] > max_val) {
-			max_val = vec[idx];
-			best_idx = idx;
-		}
-	}
-
-	return best_idx;
 }
 
 std::vector<float> generate_dirichlet_noise(size_t size) {

@@ -36,5 +36,6 @@ cdef extern from "game.h":
         vector[int] getPossibleMoves()
         void switchPlayer()
         int makeMove(int x)
-        Game* copyGame()
+        Game copyGame()
+        Game* copyGamePtr()
         vector[int] copyBoard()

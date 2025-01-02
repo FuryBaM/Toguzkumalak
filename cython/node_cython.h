@@ -25,6 +25,7 @@
 #endif
 
 __PYX_EXTERN_C PyArrayObject *vector_to_numpy(PyObject *);
+__PYX_EXTERN_C std::vector<float>  numpy_to_vector(PyArrayObject *);
 
 #endif /* !__PYX_HAVE_API__mcts */
 

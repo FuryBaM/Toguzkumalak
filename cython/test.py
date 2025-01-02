@@ -1,32 +1,49 @@
 import math
 
 import numpy as np
-from mcts import UCT_search, PyGame, encodeBoard
+from mcts import PyGame, UCT_search, minimaxPy, encodeBoard
 
-def getMove(game, depth = 2):
+import numpy as np
+
+def net_func(game):
+    """
+    Возвращает случайные child_priors и value_estimate для тестирования.
+    """
+    # Генерация случайных вероятностей для child_priors
+    child_priors = np.random.random(9)  # 9 действий, значения от 0 до 1
+    child_priors /= child_priors.sum()  # Нормализация, чтобы сумма была равна 1
+
+    # Генерация случайного значения value_estimate
+    value_estimate = np.random.random() * 2 - 1  # Значение от -1 до 1
+
+    return np.float32(child_priors), value_estimate
+
+def getMove(game, depth = 8):
     best_move = -1
     best_eval = -math.inf
     player = game.player
     for move in game.get_possible_moves():
         game_copy = game.copy_game()
         game_copy.make_move(move)
-        eval = minimaxPy(game, player, depth - 1, -math.inf, math.inf)
+        eval = minimaxPy(game_copy, player, depth - 1, -math.inf, math.inf)
         if eval > best_eval:
             best_move = move
             best_eval = eval
     return best_move
 
-game = PyGame(9)
+# game = PyGame(9)
+# game_copy = game.copy_game()
 # while game.check_winner() == -1:
 #     game.show_board()
-#     game.make_move(getMove(game, 4))
+#     game.make_move(getMove(game, 1))
 # game.show_board()
 
+game = PyGame(9)
 print(encodeBoard(game))
-
-def net_func(game):
-    return np.array([1, 1, 1, 1, 1, 1, 1, 1, 1], dtype=np.float32), 0.5
 print(net_func(game))
-res = UCT_search(game, 20000, net_func, False)
-print(res[0])
-print(res[1])
+while game.check_winner() == -1:
+    game.show_board()
+    res = UCT_search(game, 800, net_func, False)
+    print("Result", res[0])
+    game.make_move(res[0])
+game.show_board()

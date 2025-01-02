@@ -50,7 +50,8 @@ public:
 	std::vector<int> getPossibleMoves();
 	void switchPlayer();
 	bool makeMove(int x);
-	Game* copyGame();
+	Game copyGame();
+	Game* copyGamePtr();
 	std::vector<int> copyBoard();
 };
 float minimax(Game* game, int player, int depth, float alpha, float beta);

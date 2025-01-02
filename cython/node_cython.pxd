@@ -24,9 +24,11 @@ cdef extern from "node.h":
         void setTotalValue(float value)
 
         UCTNode(Game* game, int move, UCTNode* parent, bool self_play)
-        void DestroyAllChildren()
+        void destroyChildren()
+        void destroyAllChildren()
         UCTNode* select_leaf()
         void backup(float value_estimate)
         void expand(vector[float] child_priors)
         int best_child()
         UCTNode* try_add_child(int move)
+        vector[float] add_dirichlet_noise(vector[float] action_idxs, vector[float] child_priors)

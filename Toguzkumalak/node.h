@@ -2,11 +2,14 @@
 #include "game.h"
 #include <unordered_map>
 #include <random>
+#include <bit>
+#include <memory>
+
 class UCTNode
 {
 public:
 	Game* game;
-	size_t action_size;
+	size_t action_size = 9;
 	int move;
 	bool is_expanded;
 	bool self_play;
@@ -16,10 +19,11 @@ public:
 	std::vector<float> child_total_value;
 	std::vector<float> child_number_visits;
 	std::vector<int> action_idxes;
-	float a;
+	float a = 0.0f;
 
 	UCTNode(Game* game, int move, UCTNode* parent, bool selfplay);
-	void DestroyAllChildren();
+	void destroyChildren();
+	void destroyAllChildren();
 	~UCTNode();
 	float getNumberVisits()
 	{
@@ -148,5 +152,4 @@ bool contains(const std::unordered_map<K, V>& map, const K& key) {
 }
 
 int argmax(const std::vector<float>& vec);
-int argmax(std::vector<float> vec, std::vector<int> indices);
 std::vector<float> generate_dirichlet_noise(size_t size);

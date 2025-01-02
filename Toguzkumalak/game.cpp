@@ -270,7 +270,23 @@ Game::board Game::copyBoard()
     return Game::board(boardArray);
 }
 
-Game* Game::copyGame() {
+Game Game::copyGame() {
+    // Create a new Game object on the heap
+    Game copied_game = Game(this->action_size);
+    copied_game.boardArray = this->copyBoard(); // Copy the board
+    copied_game.player = this->player; // Copy the current player
+    copied_game.player1_score = this->player1_score; // Copy scores
+    copied_game.player2_score = this->player2_score;
+    copied_game.tuzdyk1 = this->tuzdyk1; // Copy additional game state
+    copied_game.tuzdyk2 = this->tuzdyk2;
+    copied_game.semiMoves = this->semiMoves;
+    copied_game.fullMoves = this->fullMoves;
+    copied_game.lastMove = this->lastMove; // Copy last move
+    // Copy any other necessary attributes
+    return copied_game;
+}
+
+Game* Game::copyGamePtr() {
     // Create a new Game object on the heap
     Game* copied_game = new Game(this->action_size);
     copied_game->boardArray = this->copyBoard(); // Copy the board
@@ -374,12 +390,11 @@ float minimax(Game* game, int player, int depth, float alpha, float beta)
         for (int i = 0; i < actions.size(); ++i)
         {
             int move = actions[i];
-            Game* game_copy = game->copyGame();
-            game_copy->makeMove(move);
-            eval = minimax(game_copy, player, depth - 1, alpha, beta);
+            Game game_copy = game->copyGame();
+            game_copy.makeMove(move);
+            eval = minimax(&game_copy, player, depth - 1, alpha, beta);
             max_eval = std::max(max_eval, eval);
             alpha = std::max(alpha, eval);
-            delete game_copy;
             if (beta <= alpha)
             {
                 break;
@@ -392,12 +407,11 @@ float minimax(Game* game, int player, int depth, float alpha, float beta)
         for (int i = 0; i < actions.size(); ++i)
         {
             int move = actions[i];
-            Game* game_copy = game->copyGame();
-            game_copy->makeMove(move);
-            eval = minimax(game_copy, player, depth - 1, alpha, beta);
+            Game game_copy = game->copyGame();
+            game_copy.makeMove(move);
+            eval = minimax(&game_copy, player, depth - 1, alpha, beta);
             min_eval = std::min(min_eval, eval);
             beta = std::min(beta, eval);
-            delete game_copy;
             if (beta <= alpha)
             {
                 break;
