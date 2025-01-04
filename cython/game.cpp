@@ -30,7 +30,7 @@ void Game::showBoard() {
     std::string player1Row = "";
     std::string player2Row = "";
 
-    // Р¤РѕСЂРјРёСЂРѕРІР°РЅРёРµ СЃС‚СЂРѕРєРё РґР»СЏ Player 1
+    // Формирование строки для Player 1
     for (int i = 0; i < action_size; ++i) {
         if (tuzdyk2 != i) {
             player1Row += std::to_string(boardArray[i]) + " ";
@@ -40,7 +40,7 @@ void Game::showBoard() {
         }
     }
 
-    // Р¤РѕСЂРјРёСЂРѕРІР°РЅРёРµ СЃС‚СЂРѕРєРё РґР»СЏ Player 2
+    // Формирование строки для Player 2
     for (int i = action_size * 2 - 1; i >= action_size; --i) {
         if (tuzdyk1 != i) {
             player2Row += std::to_string(boardArray[i]) + " ";
@@ -50,25 +50,25 @@ void Game::showBoard() {
         }
     }
 
-    // Р’С‹РІРѕРґ РЅР° СЌРєСЂР°РЅ
+    // Вывод на экран
     std::cout << "__________________________\n";
     std::cout << "Move: " << semiMoves << "\n";
     std::cout << "Makes move: " << player << "\n";
     std::cout << "Player 2 Score: " << player2_score << "\n";
 
-    // РќРѕРјРµСЂР° СЃРІРµСЂС…Сѓ (РґРѕСЃРєР° Player 2)
+    // Номера сверху (доска Player 2)
     for (int i = action_size; i > 0; --i) {
         std::cout << i << " ";
     }
     std::cout << "\n\n";
 
-    // Р”РѕСЃРєР° Player 2
+    // Доска Player 2
     std::cout << player2Row << "\n";
 
-    // Р”РѕСЃРєР° Player 1
+    // Доска Player 1
     std::cout << player1Row << "\n\n";
 
-    // РќРѕРјРµСЂР° СЃРЅРёР·Сѓ (РґРѕСЃРєР° Player 1)
+    // Номера снизу (доска Player 1)
     for (int i = 1; i <= action_size; ++i) {
         std::cout << i << " ";
     }
@@ -144,7 +144,7 @@ bool Game::isValidMove(int x)
 bool Game::isPitEmpty(int x)
 {
     if (0 <= x && x < action_size * 2) {
-        return boardArray[x] == 0;  // РЇРјР° РїСѓСЃС‚Р°, РµСЃР»Рё Р·РЅР°С‡РµРЅРёРµ СЂР°РІРЅРѕ 0
+        return boardArray[x] == 0;  // Яма пуста, если значение равно 0
     }
     throw std::out_of_range("Pit index out of range");
 }
@@ -209,9 +209,10 @@ bool Game::makeMove(int x)
         stonesInArm = 1;
         boardArray[x] = 0;
     }
+    int board_size = action_size * 2;
     for (int i = 0; i < stonesInArm; ++i)
     {
-        x = (x + 1) % (action_size * 2);
+        x = (x + 1) % (board_size);
         boardArray[x]++;
     }
     if (tuzdyk1 != -1)
