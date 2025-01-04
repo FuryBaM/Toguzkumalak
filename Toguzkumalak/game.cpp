@@ -209,9 +209,10 @@ bool Game::makeMove(int x)
         stonesInArm = 1;
         boardArray[x] = 0;
     }
+    int board_size = action_size * 2;
     for (int i = 0; i < stonesInArm; ++i)
     {
-        x = (x + 1) % (action_size * 2);
+        x = (x + 1) % (board_size);
         boardArray[x]++;
     }
     if (tuzdyk1 != -1)

@@ -1,4 +1,7 @@
-﻿#include <iostream>
+﻿#define _CRTDBG_MAP_ALLOC
+#include <stdlib.h>
+#include <crtdbg.h>
+#include <iostream>
 #include "game.h"
 #include "node.h"
 #include <bit>
@@ -31,8 +34,8 @@ std::pair<std::vector<float>, float> net(Game* game)
     // Генератор случайных чисел
     static std::random_device rd;
     static std::mt19937 gen(rd());  // Генератор случайных чисел
-    static std::uniform_real_distribution<> dis1(-1.0, 1.0); // Диапазон от -1 до 1
-    static std::uniform_real_distribution<> dis2(0, 1.0); // Диапазон от 0 до 1
+    static std::uniform_real_distribution<float> dis1(-1.0f, 1.0f); // Диапазон от -1 до 1
+    static std::uniform_real_distribution<float> dis2(0.0f, 1.0f); // Диапазон от 0 до 1
 
     // Генерация случайных значений для вектора
     std::vector<float> random_values(9);
@@ -44,15 +47,17 @@ std::pair<std::vector<float>, float> net(Game* game)
     // Генерация случайного значения для второго числа
     float random_value = static_cast<float>(dis1(gen));
 
-    return std::pair<std::vector<float>, float>(random_values, random_value);
+    auto defined = std::make_pair(std::vector<float>{0.0373f, 0.1493f, 0.0746f, 0.0896f, 0.0448f, 0.0075f, 0.2239f, 0.1791f, 0.1939f}, +0.1f);
+    auto random = std::make_pair(random_values, random_value);
+    return defined;
 }
 
 std::pair<float, UCTNode*> UCT_search(Game* game, int num_reads, std::pair<std::vector<float>, float>(*net_func)(Game*), bool selfplay)
 {
     std::vector<float> child_priors;
     float value_estimate;
-    UCTNode* dummy = new UCTNode(game->copyGamePtr(), -1, nullptr, selfplay, false);
-    UCTNode* root = new UCTNode(game->copyGamePtr(), -1, dummy, selfplay, true);
+    Game* copy = game->copyGamePtr();
+    UCTNode* root = new UCTNode(copy, -1, new UCTNode(copy->copyGamePtr(), -1, nullptr, selfplay, false), selfplay, true);
     for (int i = 0; i < num_reads; ++i)
     {
         UCTNode* leaf = root->select_leaf();
@@ -69,28 +74,35 @@ std::pair<float, UCTNode*> UCT_search(Game* game, int num_reads, std::pair<std::
         leaf->backup(value_estimate);
     }
     std::cout << "Child visits: ";
-    for (int v : root->child_number_visits) std::cout << v << " ";
+    for (float v : root->child_number_visits) std::cout << v << " ";
     std::cout << std::endl;
-    delete dummy;
-    return std::make_pair((float)argmax(root->child_number_visits), root);
+    std::cout << "Child priors: ";
+    for (float v : root->child_priors) std::cout << v << " ";
+    std::cout << std::endl;
+    std::cout << "Child total: ";
+    for (float v : root->child_total_value) std::cout << v << " ";
+    std::cout << std::endl;
+    return std::make_pair(argmax(root->child_number_visits), root);
 }
 
 int main()
 {
+    _CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
     int move;
     Game* game = new Game(9);
     game->showBoard();
     while (game->checkWinner() == GAME_CONTINUE)
     {
-        if (game->player == WHITE)
+        if (game->player == -1)
         {
             move = getMove(game,6);
         }
         else
         {
-            std::pair<float, UCTNode*> result = UCT_search(game, 800, net, true);
+            std::pair<float, UCTNode*> result = UCT_search(game, 100, net, false);
             std::cout << "Children " << result.second->children.size() << std::endl;
             move = result.first;
+            delete result.second->parent;
             delete result.second;
         }
         game->makeMove(move);
@@ -116,4 +128,6 @@ int main()
     }
     std::cout << win_msg << std::endl;
     delete game;
+    _CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_DEBUG);
+    _CrtDumpMemoryLeaks();
 }
