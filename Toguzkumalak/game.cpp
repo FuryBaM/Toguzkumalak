@@ -294,7 +294,7 @@ Game::board Game::copyBoard()
 {
     size_t size = action_size * 2;
     int* copy = new int[size];
-    std::memcpy(copy, boardArray, sizeof(board) + size);
+    std::memcpy(copy, boardArray, size * sizeof(board));
     return copy;
 }
 
