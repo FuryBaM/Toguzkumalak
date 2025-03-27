@@ -19,7 +19,7 @@ class Game
 private:
 	bool isPlayer(int player) { return (player != 0 && player != 1); }
 public:
-	using board = std::vector<int>;
+	using board = int*;
 	int action_size;
 	int max_stones;
 	int goal;
@@ -34,7 +34,8 @@ public:
 	std::string lastMove;
 
 	Game(int action_size = 9);
-	~Game() = default;
+	Game(const Game& game);
+	~Game();
 	void setActionSize(int value);
 	void reset();
 	void showBoard();
@@ -50,8 +51,6 @@ public:
 	std::vector<int> getPossibleMoves();
 	void switchPlayer();
 	bool makeMove(int x);
-	Game copyGame();
-	Game* copyGamePtr();
-	std::vector<int> copyBoard();
+	board copyBoard();
 };
 float minimax(Game* game, int player, int depth, float alpha, float beta);

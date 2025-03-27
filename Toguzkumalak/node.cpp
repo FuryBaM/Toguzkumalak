@@ -6,7 +6,7 @@
 #include <iostream>
 
 
-UCTNode::UCTNode(Game* game, int move, UCTNode* parent, bool selfplay, bool is_root) : game(game), move(move), parent(parent), self_play(selfplay), is_root(is_root)
+UCTNode::UCTNode(Game* game, int move, UCTNode* parent, bool selfplay, bool is_root)
 {
 	this->game = game;
 	this->move = move;
@@ -32,28 +32,15 @@ UCTNode::UCTNode(Game* game, int move, UCTNode* parent, bool selfplay, bool is_r
 	a = 10.0f / action_size;
 }
 
-void UCTNode::destroyChildren()
-{
-	children.clear();
+void UCTNode::destroyAllChildren() {
+	for (auto& child : children) {
+		delete child.second; // Деструктор вызовет destroyAllChildren() рекурсивно
+	}
+	children.clear(); // После удаления указателей очищаем контейнер
 }
 
-void UCTNode::destroyAllChildren()
-{
-	for (auto child : children)
-	{
-		if (child.second)
-		{
-			child.second->destroyAllChildren();
-			delete child.second;
-		}
-	}
-}
-
-UCTNode::~UCTNode(){
-	if (is_root)
-	{
-		destroyAllChildren();
-	}
+UCTNode::~UCTNode() {
+	destroyAllChildren(); // Удаляем всех детей для любого узла, не только root
 	delete game;
 }
 
@@ -171,7 +158,7 @@ UCTNode* UCTNode::try_add_child(int move)
 {
 	if (contains(children, move) == false)
 	{
-		Game* copy_game = game->copyGamePtr();
+		Game* copy_game = new Game(*game);
 		copy_game->makeMove(move);
 		UCTNode* parent = this;
 		this->children[move] = new UCTNode(copy_game, move, parent, self_play, false);
@@ -223,4 +210,9 @@ std::vector<float> generate_dirichlet_noise(size_t size, float alpha) {
 	}
 
 	return noise;
+}
+
+void clearTree(UCTNode* root) {
+	delete root->parent;
+	delete root;
 }
