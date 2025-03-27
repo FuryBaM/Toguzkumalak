@@ -2,6 +2,7 @@ from setuptools import setup, Extension
 from Cython.Build import cythonize
 import numpy as np
 import os
+import sys
 
 # Указание всех необходимых файлов
 source_files = [
@@ -25,13 +26,19 @@ compiler_directives = {
     "cdivision": True,      # Разрешаем целочисленное деление
 }
 
+# Проверка, используется ли MSVC (cl.exe)
+if sys.platform == "win32":
+    extra_compile_args = ["/std:c++20", "/O2", "/fp:fast"]
+else:
+    extra_compile_args = ["-std=c++20", "-O3", "-ffast-math", "-march=native"]
+
 # Определение расширения с правильными флагами компилятора для MSVC
 extensions = [
     Extension(
         name="mcts",  # Название вашего расширения
         sources=source_files,  # Указываем pxd файлы
         include_dirs=include_dirs,  # Включаем библиотеки Numpy
-        extra_compile_args=['/std:c++20'],  # Для MSVC, поддержка C++20
+        extra_compile_args=extra_compile_args,  # Для MSVC, поддержка C++20
         extra_link_args=['/std:c++20'],     # Линковка с этим флагом
         language='c++'  # Указываем, что код на C++
     )
@@ -44,7 +51,5 @@ setup(
         extensions,
         compiler_directives=compiler_directives,
         annotate=True,  # Для генерации аннотированных HTML файлов
-    ),
-    # Дополнительные макросы
-    define_macros=define_macros,
+    )
 )

@@ -7,7 +7,7 @@ from libcpp.memory cimport shared_ptr, make_shared
 import numpy as np
 cimport numpy as np
 from game_cython cimport Game, minimax
-from node_cython cimport UCTNode, generate_dirichlet_noise
+from node_cython cimport UCTNode, generate_dirichlet_noise, clearTree
 cimport cython
 np.import_array()
 
@@ -101,17 +101,23 @@ cdef class PyGame:
         self.thisptr.lastMove = value
 
     @property
-    def boardArray(self):
-        """Получение массива boardArray как списка"""
+    def boardArray(self) -> np.ndarray:
+        """Получение boardArray как numpy-матрицы"""
         cdef int* cpp_board = self.thisptr.boardArray
-        return [cpp_board[i] for i in range(self.thisptr.action_size)]
+        cdef np.ndarray[np.int32_t, ndim=1] board_np = np.zeros(self.thisptr.action_size * 2, dtype=np.int32)
+
+        for i in range(self.thisptr.action_size * 2):
+            board_np[i] = cpp_board[i]  # Копируем данные из C++ в NumPy массив
+
+        return board_np
 
     @boardArray.setter
-    def boardArray(self, list value):
-        """Изменение boardArray из списка"""
+    def boardArray(self, np.ndarray[np.int32_t, ndim=1] value):
+        """Устанавливает boardArray из numpy-матрицы"""
         cdef int* cpp_board = self.thisptr.boardArray
-        for i in range(self.thisptr.action_size):
-            cpp_board[i] = value[i]  # Записываем значения из Python-списка
+        cdef int i
+        for i in range(self.thisptr.action_size * 2):
+            cpp_board[i] = value[i]  # Копируем данные из Python в C++
 
     def set_action_size(self, int value):
         self.thisptr.setActionSize(value)
@@ -324,4 +330,5 @@ cpdef tuple UCT_search(PyGame game, int num_reads, net_func, int self_play=1):
     # Получаем политику перед удалением root
     cdef np.ndarray[np.float32_t, ndim=1] policy = get_policy(root.thisptr)
     cdef np.ndarray[np.float32_t, ndim=1] child_number_visits = vector_to_numpy(root.thisptr.child_number_visits)
+    clearTree(root.thisptr)
     return np.argmax(child_number_visits), policy

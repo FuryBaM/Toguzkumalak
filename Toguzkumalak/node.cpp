@@ -195,16 +195,15 @@ int argmax(const std::vector<float>& vec) {
 std::vector<float> generate_dirichlet_noise(size_t size, float alpha) {
 	std::random_device rd;
 	std::mt19937 gen(rd());
-	std::gamma_distribution<float> dist(alpha, 1.0f); // ��������� ��� �����-�������������
+	std::gamma_distribution<float> dist(alpha, 1.0f);
 
 	std::vector<float> noise(size);
 	float sum = 0.0f;
 	for (size_t i = 0; i < size; ++i) {
-		noise[i] = dist(gen); // ��������� ���������� �������� ��� �������
+		noise[i] = dist(gen);
 		sum += noise[i];
 	}
 
-	// ������������, ����� ����� ���� ����� 1
 	for (size_t i = 0; i < size; ++i) {
 		noise[i] /= sum;
 	}

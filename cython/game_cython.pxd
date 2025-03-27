@@ -36,5 +36,5 @@ cdef extern from "game.h":
         int getStoneCountAtPit(int x, int y)
         vector[int] getPossibleMoves()
         void switchPlayer()
-        int makeMove(int x)
+        bool makeMove(int x)
         int* copyBoard()
