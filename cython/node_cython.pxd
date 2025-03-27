@@ -5,6 +5,7 @@ from game_cython cimport Game
 
 cdef extern from "node.h":
     vector[float] generate_dirichlet_noise(size_t size)
+    void clearTree(UCTNode* node)
     cdef cppclass UCTNode:
         Game* game
         size_t action_size

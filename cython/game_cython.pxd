@@ -15,12 +15,13 @@ cdef extern from "game.h":
         int semiMoves
         int fullMoves
         string lastMove
-        vector[int] boardArray
+        int* boardArray
         int action_size
         int max_stones
         int goal
 
         Game(int action_size)
+        Game(const Game& game)
         void setActionSize(int value)
         void reset()
         void showBoard()
@@ -36,6 +37,4 @@ cdef extern from "game.h":
         vector[int] getPossibleMoves()
         void switchPlayer()
         int makeMove(int x)
-        Game copyGame()
-        Game* copyGamePtr()
-        vector[int] copyBoard()
+        int* copyBoard()

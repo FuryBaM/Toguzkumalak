@@ -26,7 +26,6 @@ public:
 	float a = 0.0f;
 
 	UCTNode(Game* game, int move, UCTNode* parent, bool selfplay, bool is_root);
-	void destroyChildren();
 	void destroyAllChildren();
 	~UCTNode();
 	float getNumberVisits()
@@ -78,3 +77,4 @@ bool contains(const std::unordered_map<K, V>& map, const K& key) {
 
 int argmax(const std::vector<float>& vec);
 std::vector<float> generate_dirichlet_noise(size_t size, float alpha);
+void clearTree(UCTNode* node);

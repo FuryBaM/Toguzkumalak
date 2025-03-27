@@ -1,10 +1,33 @@
-#include "game.h"
+п»ї#include "game.h"
 #include <iostream>
 
 Game::Game(int a_size)
 {
     setActionSize(a_size);
     reset();
+}
+
+Game::Game(const Game& game)
+{
+    size_t size = game.action_size * 2;
+    setActionSize(game.action_size);  // РЈСЃС‚Р°РЅР°РІР»РёРІР°РµРј СЂР°Р·РјРµСЂ
+
+    boardArray = new int[size];  // Р’С‹РґРµР»СЏРµРј РЅРѕРІСѓСЋ РїР°РјСЏС‚СЊ
+    std::memcpy(boardArray, game.boardArray, size * sizeof(int)); // рџџў РСЃРїСЂР°РІР»РµРЅРЅС‹Р№ memcpy
+
+    player = game.player; // РљРѕРїРёСЂСѓРµРј С‚РµРєСѓС‰РµРіРѕ РёРіСЂРѕРєР°
+    player1_score = game.player1_score;
+    player2_score = game.player2_score;
+    tuzdyk1 = game.tuzdyk1;
+    tuzdyk2 = game.tuzdyk2;
+    semiMoves = game.semiMoves;
+    fullMoves = game.fullMoves;
+    lastMove = game.lastMove;
+}
+
+Game::~Game()
+{
+    delete[] boardArray;
 }
 
 void Game::setActionSize(int a_size)
@@ -19,7 +42,8 @@ void Game::setActionSize(int a_size)
 void Game::reset()
 {
     size_t size = action_size * 2;
-    boardArray = std::vector<int>(size, action_size);
+    boardArray = new int[size];
+    std::fill(boardArray, boardArray + size, action_size);
     player = player1_score = player2_score = 0;
     tuzdyk1 = tuzdyk2 = -1;
     semiMoves = fullMoves = 0;
@@ -30,7 +54,7 @@ void Game::showBoard() {
     std::string player1Row = "";
     std::string player2Row = "";
 
-    // Формирование строки для Player 1
+    // Р¤РѕСЂРјРёСЂРѕРІР°РЅРёРµ СЃС‚СЂРѕРєРё РґР»СЏ Player 1
     for (int i = 0; i < action_size; ++i) {
         if (tuzdyk2 != i) {
             player1Row += std::to_string(boardArray[i]) + " ";
@@ -40,7 +64,7 @@ void Game::showBoard() {
         }
     }
 
-    // Формирование строки для Player 2
+    // Р¤РѕСЂРјРёСЂРѕРІР°РЅРёРµ СЃС‚СЂРѕРєРё РґР»СЏ Player 2
     for (int i = action_size * 2 - 1; i >= action_size; --i) {
         if (tuzdyk1 != i) {
             player2Row += std::to_string(boardArray[i]) + " ";
@@ -50,25 +74,25 @@ void Game::showBoard() {
         }
     }
 
-    // Вывод на экран
+    // Р’С‹РІРѕРґ РЅР° СЌРєСЂР°РЅ
     std::cout << "__________________________\n";
     std::cout << "Move: " << semiMoves << "\n";
     std::cout << "Makes move: " << player << "\n";
     std::cout << "Player 2 Score: " << player2_score << "\n";
 
-    // Номера сверху (доска Player 2)
+    // РќРѕРјРµСЂР° СЃРІРµСЂС…Сѓ (РґРѕСЃРєР° Player 2)
     for (int i = action_size; i > 0; --i) {
         std::cout << i << " ";
     }
     std::cout << "\n\n";
 
-    // Доска Player 2
+    // Р”РѕСЃРєР° Player 2
     std::cout << player2Row << "\n";
 
-    // Доска Player 1
+    // Р”РѕСЃРєР° Player 1
     std::cout << player1Row << "\n\n";
 
-    // Номера снизу (доска Player 1)
+    // РќРѕРјРµСЂР° СЃРЅРёР·Сѓ (РґРѕСЃРєР° Player 1)
     for (int i = 1; i <= action_size; ++i) {
         std::cout << i << " ";
     }
@@ -144,7 +168,7 @@ bool Game::isValidMove(int x)
 bool Game::isPitEmpty(int x)
 {
     if (0 <= x && x < action_size * 2) {
-        return boardArray[x] == 0;  // Яма пуста, если значение равно 0
+        return boardArray[x] == 0;  // РЇРјР° РїСѓСЃС‚Р°, РµСЃР»Рё Р·РЅР°С‡РµРЅРёРµ СЂР°РІРЅРѕ 0
     }
     throw std::out_of_range("Pit index out of range");
 }
@@ -268,39 +292,10 @@ bool Game::makeMove(int x)
 
 Game::board Game::copyBoard()
 {
-    return Game::board(boardArray);
-}
-
-Game Game::copyGame() {
-    // Create a new Game object on the heap
-    Game copied_game = Game(this->action_size);
-    copied_game.boardArray = this->copyBoard(); // Copy the board
-    copied_game.player = this->player; // Copy the current player
-    copied_game.player1_score = this->player1_score; // Copy scores
-    copied_game.player2_score = this->player2_score;
-    copied_game.tuzdyk1 = this->tuzdyk1; // Copy additional game state
-    copied_game.tuzdyk2 = this->tuzdyk2;
-    copied_game.semiMoves = this->semiMoves;
-    copied_game.fullMoves = this->fullMoves;
-    copied_game.lastMove = this->lastMove; // Copy last move
-    // Copy any other necessary attributes
-    return copied_game;
-}
-
-Game* Game::copyGamePtr() {
-    // Create a new Game object on the heap
-    Game* copied_game = new Game(this->action_size);
-    copied_game->boardArray = this->copyBoard(); // Copy the board
-    copied_game->player = this->player; // Copy the current player
-    copied_game->player1_score = this->player1_score; // Copy scores
-    copied_game->player2_score = this->player2_score;
-    copied_game->tuzdyk1 = this->tuzdyk1; // Copy additional game state
-    copied_game->tuzdyk2 = this->tuzdyk2;
-    copied_game->semiMoves = this->semiMoves;
-    copied_game->fullMoves = this->fullMoves;
-    copied_game->lastMove = this->lastMove; // Copy last move
-    // Copy any other necessary attributes
-    return copied_game;
+    size_t size = action_size * 2;
+    int* copy = new int[size];
+    std::memcpy(copy, boardArray, size * sizeof(board));
+    return copy;
 }
 
 float Game::evaluate(int player)
@@ -391,7 +386,7 @@ float minimax(Game* game, int player, int depth, float alpha, float beta)
         for (int i = 0; i < actions.size(); ++i)
         {
             int move = actions[i];
-            Game game_copy = game->copyGame();
+            Game game_copy = Game(*game);
             game_copy.makeMove(move);
             eval = minimax(&game_copy, player, depth - 1, alpha, beta);
             max_eval = std::max(max_eval, eval);
@@ -408,7 +403,7 @@ float minimax(Game* game, int player, int depth, float alpha, float beta)
         for (int i = 0; i < actions.size(); ++i)
         {
             int move = actions[i];
-            Game game_copy = game->copyGame();
+            Game game_copy = Game(*game);
             game_copy.makeMove(move);
             eval = minimax(&game_copy, player, depth - 1, alpha, beta);
             min_eval = std::min(min_eval, eval);

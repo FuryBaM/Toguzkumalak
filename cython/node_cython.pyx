@@ -102,14 +102,16 @@ cdef class PyGame:
 
     @property
     def boardArray(self):
-        cdef vector[int] cpp_board = self.thisptr.boardArray
-        return [cpp_board[i] for i in range(cpp_board.size())]
+        """Получение массива boardArray как списка"""
+        cdef int* cpp_board = self.thisptr.boardArray
+        return [cpp_board[i] for i in range(self.thisptr.action_size)]
+
     @boardArray.setter
     def boardArray(self, list value):
-        cdef vector[int] cpp_board = vector[int]()
-        for v in value:
-            cpp_board.push_back(v)
-        self.thisptr.boardArray = cpp_board
+        """Изменение boardArray из списка"""
+        cdef int* cpp_board = self.thisptr.boardArray
+        for i in range(self.thisptr.action_size):
+            cpp_board[i] = value[i]  # Записываем значения из Python-списка
 
     def set_action_size(self, int value):
         self.thisptr.setActionSize(value)
@@ -196,13 +198,27 @@ cdef class PyGame:
         return self.thisptr.makeMove(x)
 
     def copy_game(self):
+        cdef Game* game_copy = new Game(self.thisptr[0])
         cdef PyGame py_game_copy = PyGame(9)
-        cdef Game* game_copy = self.thisptr.copyGamePtr()
         py_game_copy.thisptr = game_copy
         return py_game_copy
 
     def copy_board(self):
-        return list(self.thisptr.copyBoard())
+        return list()
+
+    def getBoard(self):
+        """Возвращает массив доски в виде NumPy массива типа float32"""
+        cdef int* board_ptr = self.thisptr.boardArray  # Получаем указатель на int*
+        cdef int size = self.thisptr.action_size * 2  # Размер массива
+
+        # Создаем NumPy массив из указателя
+        cdef np.ndarray[np.float32_t, ndim=1] board_array = np.zeros(size, dtype=np.float32)
+
+        # Заполняем NumPy массив значениями из C-массива
+        for i in range(size):
+            board_array[i] = <float> board_ptr[i]
+
+        return board_array
 
 cdef public np.ndarray vector_to_numpy(list vec):
     cdef int n = len(vec)
@@ -256,7 +272,7 @@ cpdef np.ndarray[np.float32_t, ndim=1] encodeBoard(PyGame game):
     for i in range(2):
         for j in range(game.action_size):
             idx = (i * game.action_size) + j  # Индекс в одномерном массиве
-            input_board[idx] = game.boardArray[i * game.action_size + j]  # Обращаемся к одномерному массиву board
+            input_board[idx] = game.getBoard()[i * game.action_size + j]  # Обращаемся к одномерному массиву board
             if i == 0 and tuzdyk2 == j:
                 input_board[idx] = -1
             if i == 1 and tuzdyk1 == j:
