@@ -1,10 +1,5 @@
-﻿#include "node.h"
-#include <stdexcept>
-#include <limits>
-#include <bit>
-#include <memory>
-#include <iostream>
-
+﻿#include "pch.h"
+#include "node.h"
 
 UCTNode::UCTNode(Game* game, int move, UCTNode* parent, bool selfplay, bool is_root)
 {

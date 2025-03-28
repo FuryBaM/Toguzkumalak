@@ -41,3 +41,6 @@ Release/
 .vscode/
 build/
 .venv/
+
+libtorch/*
+!libtorch/.gitkeep

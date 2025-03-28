@@ -1,9 +1,9 @@
-﻿#include <stdlib.h>
-#include <iostream>
+﻿#include "pch.h"
+
 #include "game.h"
 #include "node.h"
-#include <bit>
-#include <memory>
+
+torch::jit::script::Module model;
 
 int getMove(Game* game, int depth)
 {
@@ -27,31 +27,71 @@ int getMove(Game* game, int depth)
     return bestmove;
 }
 
-std::pair<std::vector<float>, float> net(Game* game)
-{
-    // Генератор случайных чисел
-    static std::random_device rd;
-    static std::mt19937 gen(rd());  // Генератор случайных чисел
-    static std::uniform_real_distribution<float> dis1(-1.0f, 1.0f); // Диапазон от -1 до 1
-    static std::uniform_real_distribution<float> dis2(0.0f, 1.0f); // Диапазон от 0 до 1
-
-    // Генерация случайных значений для вектора
-    std::vector<float> random_values(9);
-    for (int i = 0; i < 9; ++i)
-    {
-        random_values[i] = static_cast<float>(dis2(gen)); // Генерация значения от -1 до 1
+void load_model(const std::string& model_path) {
+    try {
+        model = torch::jit::load(model_path);
+        model.to(torch::kCPU);
+        model.eval();
+        std::cout << "Model loaded successfully!" << std::endl;
     }
-
-    // Генерация случайного значения для второго числа
-    float random_value = static_cast<float>(dis1(gen));
-
-    auto defined = std::make_pair(random_values, +0.1f);
-    auto random = std::make_pair(random_values, random_value);
-
-    return defined;
+    catch (const c10::Error& e) {
+        std::cerr << "Error loading model: " << e.what() << std::endl;
+        exit(EXIT_FAILURE);
+    }
 }
 
-std::pair<float, UCTNode*> UCT_search(Game* game, int num_reads, std::pair<std::vector<float>, float>(*net_func)(Game*), bool selfplay)
+std::pair<std::vector<float>, float> net_func(Game* game) {
+    // Преобразуем состояние игры в тензор
+    std::vector<float> game_state = game->toTensor(); // Реализуй toTensor() в Game
+    auto input_tensor = torch::from_blob(game_state.data(), { 1, static_cast<int64_t>(game_state.size()) }).to(torch::kFloat);
+
+    // Запускаем сеть
+    std::vector<torch::jit::IValue> inputs;
+    inputs.push_back(input_tensor);
+    auto outputs = model.forward(inputs).toTuple();
+
+    // Извлекаем policy и value
+    at::Tensor policy_tensor = outputs->elements()[0].toTensor().contiguous();
+    at::Tensor value_tensor = outputs->elements()[1].toTensor();
+
+    // Конвертируем policy в std::vector<float>
+    std::vector<float> child_priors(policy_tensor.data_ptr<float>(),
+        policy_tensor.data_ptr<float>() + policy_tensor.numel());
+
+    float value = value_tensor.item<float>();
+
+    return { child_priors, value };
+}
+
+std::vector<float> softmax(const std::vector<float>& x) {
+    std::vector<float> probabilities(x.size());
+    float max_val = *std::max_element(x.begin(), x.end());
+
+    float sum_exp = 0.0;
+    for (size_t i = 0; i < x.size(); ++i) {
+        probabilities[i] = std::exp(x[i] - max_val);
+        sum_exp += probabilities[i];
+    }
+
+    for (size_t i = 0; i < x.size(); ++i) {
+        probabilities[i] /= sum_exp;
+    }
+
+    return probabilities;
+}
+
+std::vector<float> get_policy(UCTNode* root, float temperature = 1.0) {
+    std::vector<float> child_number_visits = root->child_number_visits;
+    std::vector<float> log_visits(child_number_visits.size());
+
+    for (size_t i = 0; i < child_number_visits.size(); ++i) {
+        log_visits[i] = std::log(child_number_visits[i] + 1.0) / temperature;
+    }
+
+    return softmax(log_visits);
+}
+
+std::pair<float, std::vector<float>> UCT_search(Game* game, int num_reads, std::pair<std::vector<float>, float>(*net_func)(Game*), bool selfplay)
 {
     std::vector<float> child_priors;
     float value_estimate;
@@ -72,61 +112,51 @@ std::pair<float, UCTNode*> UCT_search(Game* game, int num_reads, std::pair<std::
         leaf->expand(child_priors);
         leaf->backup(value_estimate);
     }
-    /*std::cout << "Child visits: ";
-    for (float v : root->child_number_visits) std::cout << v << " ";
-    std::cout << std::endl;
-    std::cout << "Child priors: ";
-    for (float v : root->child_priors) std::cout << v << " ";
-    std::cout << std::endl;
-    std::cout << "Child total: ";
-    for (float v : root->child_total_value) std::cout << v << " ";
-    std::cout << std::endl;*/
-    return std::make_pair(argmax(root->child_number_visits), root);
+    std::vector<float> policy = get_policy(root);
+    float action = argmax(root->child_number_visits);
+    clearTree(root);
+    return std::make_pair(action, policy);
 }
 
 int main()
 {
-    for (int i = 0; i < 10; i++) {
-        int move;
-        Game* game = new Game(9);
+    load_model("current_trained_net2.pt");
+    int move;
+    Game* game = new Game(9);
+    game->showBoard();
+    while (game->checkWinner() == GAME_CONTINUE)
+    {
+        if (game->player == -1)
+        {
+            move = getMove(game, 6);
+        }
+        else
+        {
+            std::pair<float, std::vector<float>> result = UCT_search(game, 800, net_func, false);
+            move = result.first;
+        }
+        game->makeMove(move);
         game->showBoard();
-        while (game->checkWinner() == GAME_CONTINUE)
-        {
-            if (game->player == -1)
-            {
-                move = getMove(game, 6);
-            }
-            else
-            {
-                std::pair<float, UCTNode*> result = UCT_search(game, 10000, net, false);
-                //std::cout << "Children " << result.second->children.size() << std::endl;
-                move = result.first;
-                clearTree(result.second);
-            }
-            game->makeMove(move);
-            game->showBoard();
-        }
-        std::string win_msg = "Unknown";
-        switch (game->checkWinner())
-        {
-        case GAME_DRAW:
-            win_msg = "Draw!";
-            break;
-        case GAME_WHITE_WIN:
-            win_msg = "White wins!";
-            break;
-        case GAME_BLACK_WIN:
-            win_msg = "Black wins!";
-            break;
-        case GAME_CONTINUE:
-            win_msg = "Game is not finished.";
-            break;
-        default:
-            break;
-        }
-        std::cout << win_msg << std::endl;
-        delete game;
-        game = nullptr;
     }
-    _CrtDumpMemoryLeaks();  // Проверяет утечки памяти при завершении
+    std::string win_msg = "Unknown";
+    switch (game->checkWinner())
+    {
+    case GAME_DRAW:
+        win_msg = "Draw!";
+        break;
+    case GAME_WHITE_WIN:
+        win_msg = "White wins!";
+        break;
+    case GAME_BLACK_WIN:
+        win_msg = "Black wins!";
+        break;
+    case GAME_CONTINUE:
+        win_msg = "Game is not finished.";
+        break;
+    default:
+        break;
+    }
+    std::cout << win_msg << std::endl;
+    delete game;
+    _CrtDumpMemoryLeaks();
 }

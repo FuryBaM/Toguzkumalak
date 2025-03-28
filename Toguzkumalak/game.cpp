@@ -1,5 +1,5 @@
-﻿#include "game.h"
-#include <iostream>
+﻿#include "pch.h"
+#include "game.h"
 
 Game::Game(int a_size)
 {
@@ -296,6 +296,30 @@ Game::board Game::copyBoard()
     int* copy = new int[size];
     std::memcpy(copy, boardArray, size * sizeof(board));
     return copy;
+}
+
+std::vector<float> Game::toTensor() {
+    std::vector<float> input_board((action_size * 2) + 3, 0.0f);
+
+    for (int i = 0; i < 2; ++i) {
+        for (int j = 0; j < action_size; ++j) {
+            int idx = (i * action_size) + j;
+            input_board[idx] = static_cast<float>(boardArray[idx]);
+
+            if (i == 0 && tuzdyk2 == j) {
+                input_board[idx] = -1.0f;
+            }
+            if (i == 1 && tuzdyk1 == j) {
+                input_board[idx] = -1.0f;
+            }
+        }
+    }
+
+    input_board[action_size * 2] = static_cast<float>(player1_score);
+    input_board[action_size * 2 + 1] = static_cast<float>(player2_score);
+    input_board[action_size * 2 + 2] = static_cast<float>(player);
+
+    return input_board;
 }
 
 float Game::evaluate(int player)

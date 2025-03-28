@@ -1,10 +1,5 @@
 ﻿#pragma once
 #include "game.h"
-#include <unordered_map>
-#include <random>
-#include <bit>
-#include <memory>
-#include <iostream>
 
 class UCTNode
 {

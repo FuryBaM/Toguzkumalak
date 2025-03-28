@@ -1,11 +1,5 @@
 #pragma once
 
-#include <vector>
-#include <array>
-#include <string>
-#include <algorithm>
-#include <cmath>
-
 #define WHITE 0
 #define BLACK 1
 
@@ -52,6 +46,7 @@ public:
 	void switchPlayer();
 	bool makeMove(int x);
 	board copyBoard();
+	std::vector<float> toTensor();
 };
 float minimax(Game* game, int player, int depth, float alpha, float beta);
 void clearGame(Game*);
