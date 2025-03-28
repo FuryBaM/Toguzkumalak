@@ -34,13 +34,13 @@ UCTNode::UCTNode(Game* game, int move, UCTNode* parent, bool selfplay, bool is_r
 
 void UCTNode::destroyAllChildren() {
 	for (auto& child : children) {
-		delete child.second; // Деструктор вызовет destroyAllChildren() рекурсивно
+		delete child.second;
 	}
-	children.clear(); // После удаления указателей очищаем контейнер
+	children.clear();
 }
 
 UCTNode::~UCTNode() {
-	destroyAllChildren(); // Удаляем всех детей для любого узла, не только root
+	destroyAllChildren();
 	delete game;
 }
 

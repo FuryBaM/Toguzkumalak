@@ -10,12 +10,12 @@ Game::Game(int a_size)
 Game::Game(const Game& game)
 {
     size_t size = game.action_size * 2;
-    setActionSize(game.action_size);  // Устанавливаем размер
+    setActionSize(game.action_size);
 
-    boardArray = new int[size];  // Выделяем новую память
-    std::memcpy(boardArray, game.boardArray, size * sizeof(int)); // 🟢 Исправленный memcpy
+    boardArray = new int[size];
+    std::memcpy(boardArray, game.boardArray, size * sizeof(int));
 
-    player = game.player; // Копируем текущего игрока
+    player = game.player;
     player1_score = game.player1_score;
     player2_score = game.player2_score;
     tuzdyk1 = game.tuzdyk1;
@@ -168,7 +168,7 @@ bool Game::isValidMove(int x)
 bool Game::isPitEmpty(int x)
 {
     if (0 <= x && x < action_size * 2) {
-        return boardArray[x] == 0;  // Яма пуста, если значение равно 0
+        return boardArray[x] == 0;
     }
     throw std::out_of_range("Pit index out of range");
 }
