@@ -416,3 +416,9 @@ float minimax(Game* game, int player, int depth, float alpha, float beta)
         return min_eval;
     }
 }
+
+void clearGame(Game* game) {
+    if (game) {
+        delete game;
+    }
+}

@@ -6,13 +6,14 @@ import sys
 
 # Указание всех необходимых файлов
 source_files = [
-    "game.cpp", "node.cpp", "node_cython.pyx"
+    r"C:\Users\Akzhol\source\repos\Toguzkumalak\Toguzkumalak\game.cpp", r"C:\Users\Akzhol\source\repos\Toguzkumalak\Toguzkumalak\node.cpp", "node_cython.pyx"
 ]
 
 # Указание директорий для включения заголовочных файлов C++
 include_dirs = [
     np.get_include(),  # Путь к Numpy
-    os.getcwd()  # Текущая директория для заголовочных файлов
+    os.getcwd(),  # Текущая директория для заголовочных файлов
+    r"C:\Users\Akzhol\source\repos\Toguzkumalak\Toguzkumalak"
 ]
 
 # Определяем дополнительные макросы

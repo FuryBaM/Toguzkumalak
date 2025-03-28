@@ -6,6 +6,7 @@ from libcpp cimport bool
 
 cdef extern from "game.h":
     float minimax(Game* game, int player, int depth, float alpha, float beta)
+    void clearGame(Game* game)
     cdef cppclass Game:
         int player
         int player1_score

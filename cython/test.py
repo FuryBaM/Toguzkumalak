@@ -1,4 +1,5 @@
 import math
+import gc
 
 import numpy as np
 from mcts import PyGame, UCT_search, minimaxPy, encodeBoard
@@ -37,12 +38,11 @@ def getMove(game, depth = 8):
 #     game.show_board()
 #     game.make_move(getMove(game, 1))
 # game.show_board()-
-game = PyGame(9)
-print(encodeBoard(game))
-print(net_func(game))
-while game.check_winner() == -1:
+for i in range(1000):
+    game = PyGame(9)
+    while game.check_winner() == -1:
+        game.show_board()
+        res, policy = UCT_search(game, 800, net_func, False)
+        print("Result", res, policy)
+        game.make_move(res)
     game.show_board()
-    res, policy = UCT_search(game, 800, net_func, False)
-    print("Result", res, policy)
-    game.make_move(res)
-game.show_board()

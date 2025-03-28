@@ -212,6 +212,8 @@ std::vector<float> generate_dirichlet_noise(size_t size, float alpha) {
 }
 
 void clearTree(UCTNode* root) {
-	delete root->parent;
-	delete root;
+	if (root) {
+		delete root->parent;
+		delete root;
+	}
 }

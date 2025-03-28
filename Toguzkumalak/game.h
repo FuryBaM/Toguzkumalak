@@ -54,3 +54,4 @@ public:
 	board copyBoard();
 };
 float minimax(Game* game, int player, int depth, float alpha, float beta);
+void clearGame(Game*);

@@ -6,7 +6,7 @@ from libcpp cimport bool, nullptr, nullptr_t
 from libcpp.memory cimport shared_ptr, make_shared
 import numpy as np
 cimport numpy as np
-from game_cython cimport Game, minimax
+from game_cython cimport Game, minimax, clearGame
 from node_cython cimport UCTNode, generate_dirichlet_noise, clearTree
 cimport cython
 np.import_array()
@@ -19,9 +19,6 @@ cdef class PyGame:
 
     def __cinit__(self, int action_size):
         self.thisptr = new Game(action_size)
-
-    def __dealloc__(self):
-        del self.thisptr
 
     @property
     def player(self):
@@ -293,9 +290,14 @@ cdef class PyUCTNode:
 
     def __cinit__(self, PyGame game, int move, PyUCTNode parent, bool self_play, bool is_root):
         if parent is None:
-            self.thisptr = new UCTNode(game.thisptr, move, NULL, self_play, is_root)
+            self.thisptr = new UCTNode(new Game(game.thisptr[0]), move, NULL, self_play, is_root)
         else:
-            self.thisptr = new UCTNode(game.thisptr, move, parent.thisptr, self_play, is_root)
+            self.thisptr = new UCTNode(new Game(game.thisptr[0]), move, parent.thisptr, self_play, is_root)
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
+cdef pyClearTree(PyUCTNode root):
+    clearTree(root.thisptr)
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
@@ -309,10 +311,9 @@ cpdef tuple UCT_search(PyGame game, int num_reads, net_func, int self_play=1):
     cdef float value_estimate
     cdef int action_size = game.thisptr.action_size
     cdef PyGame py_game = PyGame(action_size)
-    del py_game.thisptr
+    clearGame(py_game.thisptr)
     # Создаём корневой узел дерева
-    cdef PyUCTNode dummy = PyUCTNode(game=game, move=-1, parent=None, self_play=self_play, is_root=False)
-    cdef PyUCTNode root = PyUCTNode(game=game, move=-1, parent=dummy, self_play=self_play, is_root=True)
+    cdef PyUCTNode root = PyUCTNode(game=game, move=-1, parent=PyUCTNode(game=game, move=-1, parent=None, self_play=self_play, is_root=False), self_play=self_play, is_root=True)
     for i in range(num_reads):
         # Выбираем лист
         leaf = root.thisptr.select_leaf()
@@ -330,5 +331,5 @@ cpdef tuple UCT_search(PyGame game, int num_reads, net_func, int self_play=1):
     # Получаем политику перед удалением root
     cdef np.ndarray[np.float32_t, ndim=1] policy = get_policy(root.thisptr)
     cdef np.ndarray[np.float32_t, ndim=1] child_number_visits = vector_to_numpy(root.thisptr.child_number_visits)
-    clearTree(root.thisptr)
+    pyClearTree(root)
     return np.argmax(child_number_visits), policy
