@@ -44,3 +44,6 @@ build/
 
 libtorch/*
 !libtorch/.gitkeep
+*.pkl
+*.pt
+*.tar

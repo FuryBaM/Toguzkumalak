@@ -49,4 +49,5 @@ public:
 	std::vector<float> toTensor();
 };
 float minimax(Game* game, int player, int depth, float alpha, float beta);
+int getMove(Game* game, int depth);
 void clearGame(Game*);

@@ -441,6 +441,28 @@ float minimax(Game* game, int player, int depth, float alpha, float beta)
     }
 }
 
+int getMove(Game* game, int depth)
+{
+    int bestmove = -1;
+    float besteval = -std::numeric_limits<float>::infinity();
+    int player = game->player;
+    std::vector<int> actions = game->getPossibleMoves();
+    for (int i = 0; i < actions.size(); ++i)
+    {
+        int move = actions[i];
+        Game* game_copy = new Game(*game);
+        game_copy->makeMove(move);
+        float eval = minimax(game_copy, player, depth - 1, -std::numeric_limits<float>::infinity(), std::numeric_limits<float>::infinity());
+        if (eval > besteval)
+        {
+            besteval = eval;
+            bestmove = move;
+        }
+        delete game_copy;
+    }
+    return bestmove;
+}
+
 void clearGame(Game* game) {
     if (game) {
         delete game;
