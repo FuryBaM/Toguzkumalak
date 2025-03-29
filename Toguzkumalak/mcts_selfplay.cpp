@@ -187,7 +187,7 @@ void MCTS_self_play(std::string model_path, int num_games, int cpu) {
         for (int i = 1; i < dataset.values.size(); ++i) {
             dataset.values[i] = value;
         }
-        std::string filename = "dataset_cpu" + std::to_string(cpu) + '_' + std::to_string(i) + '_' + current_date() + ".pkl";
+        std::string filename = "dataset_cpu" + std::to_string(cpu) + '_' + std::to_string(i) + '_' + current_date() + ".bin";
         dataset.save(filename);
     }
 

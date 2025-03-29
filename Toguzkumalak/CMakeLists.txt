@@ -15,13 +15,6 @@ set(SOURCES
     Toguzkumalak.cpp
 )
 
-set(HEADERS
-    game.h
-    mcts_selfplay.h
-    node.h
-    pch.h
-)
-
 # Устанавливаем пути для зависимостей (например, libtorch)
 set(LIBTORCH_DIR "C:/Users/Akzhol/source/repos/Toguzkumalak/libtorch")
 
@@ -33,13 +26,28 @@ include_directories(${LIBTORCH_DIR}/include/torch/csrc/api/include)
 link_directories(${LIBTORCH_DIR}/lib)
 
 # Добавляем исполнимый файл
-add_executable(${PROJECT_NAME} ${SOURCES} ${HEADERS})
+add_executable(${PROJECT_NAME} ${SOURCES})
 
 # Устанавливаем флаги компилятора для конфигураций Debug и Release
-target_compile_options(${PROJECT_NAME} PRIVATE
-    $<$<CONFIG:Debug>:/DDEBUG /D_CONSOLE /std:c++20>
-    $<$<CONFIG:Release>:/DNDEBUG /D_CONSOLE /std:c++20 /O2>
-)
+if(MSVC)
+    # Для MSVC
+    target_compile_options(${PROJECT_NAME} PRIVATE
+        $<$<CONFIG:Debug>:/DDEBUG /D_CONSOLE /std:c++20>
+        $<$<CONFIG:Release>:/DNDEBUG /D_CONSOLE /std:c++20 /O2>
+    )
+elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    # Для Clang
+    target_compile_options(${PROJECT_NAME} PRIVATE
+        $<$<CONFIG:Debug>:-DDEBUG -D_CONSOLE -std=c++20>
+        $<$<CONFIG:Release>:-DNDEBUG -D_CONSOLE -std=c++20 -O2>
+    )
+elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
+    # Для GCC
+    target_compile_options(${PROJECT_NAME} PRIVATE
+        $<$<CONFIG:Debug>:-DDEBUG -D_CONSOLE -std=c++20>
+        $<$<CONFIG:Release>:-DNDEBUG -D_CONSOLE -std=c++20 -O2>
+    )
+endif()
 
 # Линковка с необходимыми библиотеками
 target_link_libraries(${PROJECT_NAME}
