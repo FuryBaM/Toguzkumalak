@@ -201,6 +201,7 @@ void MCTS_self_play(std::string model_path, int num_games, int cpu) {
     }
 
     auto end_time = std::chrono::high_resolution_clock::now();
-    auto elapsed = elapsed_time(std::chrono::duration_cast<std::chrono::seconds>(end_time - start_time).count());
+    auto elapsed = elapsed_time(static_cast<long long>(
+        std::chrono::duration_cast<std::chrono::seconds>(end_time - start_time).count()));
     std::cout << "[" << current_time() << "] Process " << std::to_string(cpu) << " finished. Elapsed: " << elapsed << "\n";
 }
