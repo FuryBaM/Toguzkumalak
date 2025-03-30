@@ -7,6 +7,7 @@
 #include <Windows.h>
 #else
 #include <unistd.h>
+#include <fstream>
 #endif
 
 struct GameState {
