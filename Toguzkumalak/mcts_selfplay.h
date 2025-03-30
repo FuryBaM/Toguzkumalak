@@ -1,6 +1,13 @@
 #pragma once
 #include "node.h"
 
+#ifdef _WIN32
+#define NOMINMAX  // Чтобы избежать конфликтов с `min` и `max` из Windows.h
+#include <Windows.h>
+#else
+#include <unistd.h>
+#endif
+
 struct GameState {
     std::vector<std::vector<float>> states;
     std::vector<std::vector<float>> policies;

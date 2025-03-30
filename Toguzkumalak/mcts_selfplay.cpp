@@ -6,7 +6,11 @@ std::string current_time() {
     std::time_t now_time = std::chrono::system_clock::to_time_t(now);
 
     std::tm local_time;
+#ifdef _WIN32
     if (localtime_s(&local_time, &now_time) != 0) {
+#else
+    if (localtime_r(&now_time, &local_time) == nullptr) {
+#endif
         return "Error in getting local time";
     }
 
@@ -36,8 +40,12 @@ std::string current_date() {
     std::time_t now_time = std::chrono::system_clock::to_time_t(now);
 
     std::tm local_time;
+#ifdef _WIN32
     if (localtime_s(&local_time, &now_time) != 0) {
-        return "Error in getting local date";
+#else
+    if (localtime_r(&now_time, &local_time) == nullptr) {
+#endif
+        return "Error in getting local time";
     }
 
     std::ostringstream oss;
@@ -166,7 +174,8 @@ void MCTS_self_play(std::string model_path, int num_games, int cpu) {
                     winner_name = "draw";
                 }
                 auto end_time = std::chrono::high_resolution_clock::now();
-                auto elapsed = elapsed_time(std::chrono::duration_cast<std::chrono::seconds>(end_time - start_time).count());
+                auto elapsed = elapsed_time(static_cast<long long>(
+                    std::chrono::duration_cast<std::chrono::seconds>(end_time - start_time).count()));
                 std::cout << "[" << curr_time << "]" << "[" << elapsed << "]" <<
                     "[" << cpu << "]-Episode " << i + 1 << "/" << std::to_string(num_games) << " " <<
                     "Score: " << std::to_string(game->player1_score) << "-" << std::to_string(game->player2_score) << " " <<
