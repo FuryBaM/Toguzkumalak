@@ -73,3 +73,4 @@ if(WIN32)
         LINK_FLAGS "/SUBSYSTEM:CONSOLE"
     )
 endif()
+add_definitions(-D_BUILD_MCTS)
