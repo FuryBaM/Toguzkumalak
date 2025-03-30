@@ -53,6 +53,15 @@ std::string current_date() {
     return oss.str();
 }
 
+std::string safe_filename(const std::string& save_path, int cpu, int i, const std::string& date) {
+    std::filesystem::path path = save_path.empty() ? "./datasets/all" : save_path;
+
+    std::string filename = "dataset_cpu" + std::to_string(cpu) + '_' +
+        std::to_string(i) + '_' + date + ".bin";
+
+    return (path / filename).string();
+}
+
 torch::jit::script::Module load_model(const std::string& model_path) {
     try {
         torch::jit::script::Module model;
@@ -146,7 +155,7 @@ std::pair<int, std::vector<float>> UCT_search(torch::jit::script::Module model, 
     return std::make_pair(action, policy);
 }
 
-void MCTS_self_play(std::string model_path, int num_games, int cpu) {
+void MCTS_self_play(std::string model_path, std::string save_path, int num_games, int cpu) {
     auto model = load_model(model_path);
     auto start_time = std::chrono::high_resolution_clock::now();
 
@@ -196,7 +205,7 @@ void MCTS_self_play(std::string model_path, int num_games, int cpu) {
         for (int i = 1; i < dataset.values.size(); ++i) {
             dataset.values[i] = value;
         }
-        std::string filename = "dataset_cpu" + std::to_string(cpu) + '_' + std::to_string(i) + '_' + current_date() + ".bin";
+        std::string filename = safe_filename(save_path, cpu, i, current_date());
         dataset.save(filename);
     }
 

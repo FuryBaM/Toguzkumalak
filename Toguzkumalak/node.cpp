@@ -1,6 +1,4 @@
-﻿#ifdef _BUILD_MCTS
-#include "pch.h"
-#endif
+﻿#include "pch.h"
 
 #include "node.h"
 

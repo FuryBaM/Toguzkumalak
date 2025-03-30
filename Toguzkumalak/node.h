@@ -1,11 +1,6 @@
 ﻿#pragma once
 #include "game.h"
 
-#ifndef _BUILD_MCTS
-#include <unordered_map>
-#include <random>
-#endif
-
 class UCTNode
 {
 public:

@@ -17,7 +17,14 @@
 #include <ctime>
 #include <iomanip>
 #include <sstream>
+#include <filesystem>
 
+#ifndef _WIN32
+#include <cstring>
+#endif
+
+#ifdef _BUILD_MCTS
 #include <torch/torch.h>
 #include <torch/script.h>
+#endif
 
