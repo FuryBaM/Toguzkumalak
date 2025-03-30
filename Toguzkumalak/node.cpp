@@ -1,4 +1,7 @@
-﻿#include "pch.h"
+﻿#ifdef _BUILD_MCTS
+#include "pch.h"
+#endif
+
 #include "node.h"
 
 UCTNode::UCTNode(Game* game, int move, UCTNode* parent, bool selfplay, bool is_root)

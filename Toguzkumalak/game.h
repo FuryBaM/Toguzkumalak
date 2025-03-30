@@ -1,5 +1,12 @@
 #pragma once
 
+#ifndef _BUILD_MCTS
+#include <iostream>
+#include <vector>
+#include <string>
+#include <algorithm>
+#endif // !BUILD_MCTS
+
 #define WHITE 0
 #define BLACK 1
 

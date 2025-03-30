@@ -1,4 +1,7 @@
-﻿#include "pch.h"
+﻿#ifdef _BUILD_MCTS
+#include "pch.h"
+#endif
+
 #include "game.h"
 
 Game::Game(int a_size)
