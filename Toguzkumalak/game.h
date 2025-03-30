@@ -7,6 +7,10 @@
 #include <algorithm>
 #endif // !BUILD_MCTS
 
+#include <cstring>  // Для std::memcpy
+#include <cmath>    // Для std::sqrt
+#include <limits>   // Для std::numeric_limits
+
 #define WHITE 0
 #define BLACK 1
 
