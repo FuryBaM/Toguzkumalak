@@ -16,7 +16,7 @@ set(SOURCES
 )
 
 # Устанавливаем пути для зависимостей (например, libtorch)
-set(LIBTORCH_DIR "C:/Users/Akzhol/source/repos/Toguzkumalak/libtorch")
+set(LIBTORCH_DIR "../libtorch")
 
 # Подключаем директории для заголовочных файлов
 include_directories(${LIBTORCH_DIR}/include)
@@ -56,11 +56,11 @@ target_link_libraries(${PROJECT_NAME}
     torch_cpu.lib
 )
 
-# Настроим копирование DLL файлов после сборки
+file(GLOB TORCH_DLLS "${LIBTORCH_DIR}/lib/*.dll")
+
 add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
-    "${LIBTORCH_DIR}/lib/*.dll"
-    $<TARGET_FILE_DIR:${PROJECT_NAME}>
+    ${TORCH_DLLS} $<TARGET_FILE_DIR:${PROJECT_NAME}>
 )
 
 # Настройки для платформы x64 и Win32

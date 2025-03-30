@@ -47,3 +47,4 @@ libtorch/*
 *.pkl
 *.pt
 *.tar
+*.bin
