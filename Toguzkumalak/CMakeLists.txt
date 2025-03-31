@@ -35,6 +35,9 @@ set(SOURCES
 # Создаём исполняемый файл
 add_executable(${PROJECT_NAME} ${SOURCES})
 
+# Подключаем предкомпилированный заголовок (PCH)
+target_precompile_headers(${PROJECT_NAME} PRIVATE pch.h)
+
 # Подключаем заголовочные файлы и библиотеки Torch
 target_include_directories(${PROJECT_NAME} PRIVATE ${TORCH_INCLUDE_DIRS})
 target_link_libraries(${PROJECT_NAME} "${TORCH_LIBRARIES}")
@@ -42,6 +45,12 @@ target_link_libraries(${PROJECT_NAME} "${TORCH_LIBRARIES}")
 # Добавляем pthread для Linux
 if(UNIX)
     target_link_libraries(${PROJECT_NAME} pthread)
+endif()
+
+find_package(OpenMP REQUIRED)
+if(OpenMP_CXX_FOUND)
+    target_link_libraries(${PROJECT_NAME} OpenMP::OpenMP_CXX)
+    target_compile_options(${PROJECT_NAME} PRIVATE -fopenmp)
 endif()
 
 # Копируем DLL только в Windows
@@ -55,15 +64,16 @@ endif()
 # Устанавливаем компиляторские флаги
 if(MSVC)
     target_compile_options(${PROJECT_NAME} PRIVATE
-        $<$<CONFIG:Debug>:/DDEBUG /D_CONSOLE /std:c++20>
-        $<$<CONFIG:Release>:/DNDEBUG /D_CONSOLE /std:c++20 /O2>
+        $<$<CONFIG:Debug>:/DDEBUG /D_CONSOLE /openmp /std:c++20>
+        $<$<CONFIG:Release>:/DNDEBUG /D_CONSOLE /openmp /std:c++20 /O2 /W3 /wd4100 /wd4189 /wd4244 /wd4267>
     )
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Z7")
 elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
     target_compile_options(${PROJECT_NAME} PRIVATE
-        $<$<CONFIG:Debug>:-DDEBUG -D_CONSOLE -std=c++20 -g>
-        $<$<CONFIG:Release>:-DNDEBUG -D_CONSOLE -std=c++20 -O2>
+        $<$<CONFIG:Debug>:-DDEBUG -D_CONSOLE -std=c++20 -g -fopenmp>
+        $<$<CONFIG:Release>:-DNDEBUG -D_CONSOLE -std=c++20 -O2 -fopenmp -Wall -Wextra -Wno-unused-variable -Wno-unused-parameter -Wno-sign-compare>
     )
+    target_link_libraries(${PROJECT_NAME} OpenMP::OpenMP_CXX)
 endif()
 
 # Windows-специфичные свойства

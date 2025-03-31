@@ -21,10 +21,14 @@
 
 #ifndef _WIN32
 #include <cstring>
+#include <sched.h>
+#include <pthread.h>
 #endif
 
 #ifdef _BUILD_MCTS
 #include <torch/torch.h>
 #include <torch/script.h>
+#include <omp.h>
+#include <future>
 #endif
 

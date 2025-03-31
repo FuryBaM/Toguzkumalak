@@ -1,6 +1,23 @@
 #include "pch.h"
 #include "mcts_selfplay.h"
 
+void set_cpu_affinity(int cpu_id) {
+    int num_cpus = std::thread::hardware_concurrency(); // ѕолучаем количество доступных €дер
+    int valid_cpu = cpu_id % num_cpus; // √арантируем, что не выйдем за пределы
+
+#ifdef _WIN32
+    DWORD_PTR mask = 1ULL << valid_cpu;
+    SetThreadAffinityMask(GetCurrentThread(), mask);
+#endif
+
+#ifndef _WIN32
+    cpu_set_t cpuset;
+    CPU_ZERO(&cpuset);
+    CPU_SET(valid_cpu, &cpuset);
+    sched_setaffinity(0, sizeof(cpu_set_t), &cpuset);
+#endif
+}
+
 std::string current_time() {
     auto now = std::chrono::system_clock::now();
     std::time_t now_time = std::chrono::system_clock::to_time_t(now);
@@ -156,19 +173,20 @@ std::pair<int, std::vector<float>> UCT_search(torch::jit::script::Module model, 
 }
 
 void MCTS_self_play(std::string model_path, std::string save_path, int num_games, int cpu) {
-    auto model = load_model(model_path);
+    set_cpu_affinity(cpu);
+    thread_local auto model = load_model(model_path);
     auto start_time = std::chrono::high_resolution_clock::now();
 
     std::cout << "[" << current_time() << "] Process " << std::to_string(cpu) << " started" << "\n";
 
     for (int i = 0; i < num_games; i++) {
-        Game* game = new Game(9);
+        Game game(9);
         GameState dataset;
         int value = 0;
         while (true) {
-            int winner = game->checkWinner();
+            int winner = game.checkWinner();
             std::string winner_name = "not finished";
-            if (winner != GAME_CONTINUE || game->fullMoves >= 100) {
+            if (winner != GAME_CONTINUE || game.fullMoves >= 100) {
                 std::string curr_time = current_time();
                 if (winner == GAME_BLACK_WIN) {
                     value = -1;
@@ -187,24 +205,22 @@ void MCTS_self_play(std::string model_path, std::string save_path, int num_games
                     std::chrono::duration_cast<std::chrono::seconds>(end_time - start_time).count()));
                 std::cout << "[" << curr_time << "]" << "[" << elapsed << "]" <<
                     "[" << cpu << "]-Episode " << i + 1 << "/" << std::to_string(num_games) << " " <<
-                    "Score: " << std::to_string(game->player1_score) << "-" << std::to_string(game->player2_score) << " " <<
-                    "Turns: " << std::to_string(game->fullMoves) << " " <<
+                    "Score: " << std::to_string(game.player1_score) << "-" << std::to_string(game.player2_score) << " " <<
+                    "Turns: " << std::to_string(game.fullMoves) << " " <<
                     "Winner: " << winner_name << "\n";
                 break;
             }
-            auto result = UCT_search(model, new Game(*game), 800, true);
+            auto result = UCT_search(model, &game, 800, true);
             int root_action = result.first;
             std::vector<float> policy = result.second;
-            auto state = game->toTensor();
+            auto state = game.toTensor();
             float temperature = 1.0f;
             dataset.states.push_back(state);
             dataset.policies.push_back(policy);
             dataset.values.push_back(0);
-            game->makeMove(root_action);
+            game.makeMove(root_action);
         }
-        for (int i = 1; i < dataset.values.size(); ++i) {
-            dataset.values[i] = value;
-        }
+        std::fill(dataset.values.begin() + 1, dataset.values.end(), value);
         std::string filename = safe_filename(save_path, cpu, i, current_date());
         dataset.save(filename);
     }

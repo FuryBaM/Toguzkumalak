@@ -5,8 +5,10 @@
 int main(int argc, char** argv) {
     int num_games = 25;
     int cpus = std::thread::hardware_concurrency();
+    omp_set_num_threads(cpus);
     std::string save_path = "";
     std::string model_path = "";
+    bool use_omp = false;
 
     for (int i = 1; i < argc; ++i) {
         std::string arg = argv[i];
@@ -22,6 +24,9 @@ int main(int argc, char** argv) {
         else if (arg == "--model" && i + 1 < argc) {
             model_path = argv[++i];
         }
+        else if (arg == "--omp") {
+            use_omp = true;
+        }
     }
 
     if (save_path.empty()) {
@@ -35,14 +40,22 @@ int main(int argc, char** argv) {
     std::cout << "Number of CPUs: " << cpus << std::endl;
     std::cout << "Save path: " << save_path << std::endl;
     std::cout << "Model path: " << model_path << std::endl;
+    std::cout << "Use openmp: " << (use_omp ? "true" : "false") << std::endl;
 
-    std::vector<std::thread> threads;
-    for (int i = 0; i < cpus; ++i) {
-        threads.push_back(std::thread(MCTS_self_play, model_path, save_path, num_games, i));
+    if (use_omp) {
+#pragma omp parallel for
+        for (int i = 0; i < cpus; ++i) {
+            MCTS_self_play(model_path, save_path, num_games, i);
+        }
     }
-
-    for (auto& t : threads) {
-        t.join();
+    else {
+        std::vector<std::future<void>> futures;
+        for (int i = 0; i < cpus; ++i) {
+            futures.push_back(std::async(std::launch::async, MCTS_self_play, model_path, save_path, num_games, i));
+        }
+        for (auto& f : futures) {
+            f.get();
+        }
     }
 
     std::cout << "Self-play is over." << std::endl;
