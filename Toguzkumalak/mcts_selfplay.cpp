@@ -203,8 +203,8 @@ void MCTS_self_play(std::string model_path, std::string save_path, int num_games
                 auto end_time = std::chrono::high_resolution_clock::now();
                 auto elapsed = elapsed_time(static_cast<long long>(
                     std::chrono::duration_cast<std::chrono::seconds>(end_time - start_time).count()));
-                printf("[%s][%.2f][%d]-Episode %d/%d Score: %d-%d Turns: %d Winner: %s\n",
-                    curr_time.c_str(), elapsed, cpu, i + 1, num_games,
+                printf("[%s][%s][%d]-Episode %d/%d Score: %d-%d Turns: %d Winner: %s\n",
+                    curr_time.c_str(), elapsed.c_str(), cpu, i + 1, num_games,
                     game.player1_score, game.player2_score, game.fullMoves, winner_name.c_str());
                 break;
             }
@@ -226,8 +226,8 @@ void MCTS_self_play(std::string model_path, std::string save_path, int num_games
     auto end_time = std::chrono::high_resolution_clock::now();
     auto elapsed = elapsed_time(static_cast<long long>(
         std::chrono::duration_cast<std::chrono::seconds>(end_time - start_time).count()));
-    printf("[%s] Process %d finished. Elapsed: %.2f\n",
-        current_time().c_str(), cpu, elapsed);
+    printf("[%s] Process %d finished. Elapsed: %s\n",
+        current_time().c_str(), cpu, elapsed.c_str());
 }
 
 void self_play(std::string model_path, int num_games, int depth) {
@@ -257,8 +257,8 @@ void self_play(std::string model_path, int num_games, int depth) {
                 else {
                     winnerName = "draw";
                 }
-                printf("Episode %d/%d AI: %d Score: %d-%d Moves: %d, Results: %d-%d Winner: %s\n",
-                    i + 1, num_games, ai_player,
+                printf("[%s] Episode %d/%d AI: %d Score: %d-%d Moves: %d, Results: %d-%d Winner: %s\n",
+                    current_time().c_str(), i + 1, num_games, ai_player,
                     game.player1_score, game.player2_score, game.fullMoves,
                     white_wins, black_wins, winnerName.c_str());
                 break;
