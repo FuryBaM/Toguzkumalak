@@ -9,6 +9,8 @@ int main(int argc, char** argv) {
     std::string save_path = "";
     std::string model_path = "";
     bool use_omp = false;
+    bool test_play = false;
+    int depth = 2;
 
     for (int i = 1; i < argc; ++i) {
         std::string arg = argv[i];
@@ -27,6 +29,10 @@ int main(int argc, char** argv) {
         else if (arg == "--omp") {
             use_omp = true;
         }
+        else if (arg == "--test" && i + 1 < argc) {
+            test_play = true;
+            depth = std::stoi(argv[++i]);
+        }
     }
 
     if (save_path.empty()) {
@@ -40,21 +46,28 @@ int main(int argc, char** argv) {
     std::cout << "Number of CPUs: " << cpus << std::endl;
     std::cout << "Save path: " << save_path << std::endl;
     std::cout << "Model path: " << model_path << std::endl;
-    std::cout << "Use openmp: " << (use_omp ? "true" : "false") << std::endl;
-
-    if (use_omp) {
-#pragma omp parallel for
-        for (int i = 0; i < cpus; ++i) {
-            MCTS_self_play(model_path, save_path, num_games, i);
-        }
+    std::cout << "Use open MP: " << (use_omp ? "true" : "false") << std::endl;
+    if (test_play) {
+        std::cout << "Depth: " << depth << std::endl;
+    }
+    if (test_play) {
+        self_play(model_path, num_games, depth);
     }
     else {
-        std::vector<std::future<void>> futures;
-        for (int i = 0; i < cpus; ++i) {
-            futures.push_back(std::async(std::launch::async, MCTS_self_play, model_path, save_path, num_games, i));
+        if (use_omp) {
+#pragma omp parallel for
+            for (int i = 0; i < cpus; ++i) {
+                MCTS_self_play(model_path, save_path, num_games, i);
+            }
         }
-        for (auto& f : futures) {
-            f.get();
+        else {
+            std::vector<std::future<void>> futures;
+            for (int i = 0; i < cpus; ++i) {
+                futures.push_back(std::async(std::launch::async, MCTS_self_play, model_path, save_path, num_games, i));
+            }
+            for (auto& f : futures) {
+                f.get();
+            }
         }
     }
 

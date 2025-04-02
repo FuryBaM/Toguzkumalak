@@ -307,11 +307,9 @@ std::vector<float> Game::toTensor() {
             int idx = (i * action_size) + j;
             input_board[idx] = static_cast<float>(boardArray[idx]);
 
-            if (i == 0 && tuzdyk2 == j) {
-                input_board[idx] = -1.0f;
-            }
-            if (i == 1 && tuzdyk1 == j) {
-                input_board[idx] = -1.0f;
+            // Сравниваем tуздык с idx, а не с j
+            if (idx == tuzdyk2 || idx == tuzdyk1) {
+                input_board[idx] = -1.0f;  // Туздык
             }
         }
     }
@@ -411,7 +409,7 @@ float minimax(Game* game, int player, int depth, float alpha, float beta)
         for (int i = 0; i < actions.size(); ++i)
         {
             int move = actions[i];
-            Game game_copy = Game(*game);
+            Game game_copy(*game);
             game_copy.makeMove(move);
             eval = minimax(&game_copy, player, depth - 1, alpha, beta);
             max_eval = std::max(max_eval, eval);
@@ -428,7 +426,7 @@ float minimax(Game* game, int player, int depth, float alpha, float beta)
         for (int i = 0; i < actions.size(); ++i)
         {
             int move = actions[i];
-            Game game_copy = Game(*game);
+            Game game_copy(*game);
             game_copy.makeMove(move);
             eval = minimax(&game_copy, player, depth - 1, alpha, beta);
             min_eval = std::min(min_eval, eval);
@@ -451,15 +449,14 @@ int getMove(Game* game, int depth)
     for (int i = 0; i < actions.size(); ++i)
     {
         int move = actions[i];
-        Game* game_copy = new Game(*game);
-        game_copy->makeMove(move);
-        float eval = minimax(game_copy, player, depth - 1, -std::numeric_limits<float>::infinity(), std::numeric_limits<float>::infinity());
+        Game game_copy(*game);
+        game_copy.makeMove(move);
+        float eval = minimax(&game_copy, player, depth - 1, -std::numeric_limits<float>::infinity(), std::numeric_limits<float>::infinity());
         if (eval > besteval)
         {
             besteval = eval;
             bestmove = move;
         }
-        delete game_copy;
     }
     return bestmove;
 }

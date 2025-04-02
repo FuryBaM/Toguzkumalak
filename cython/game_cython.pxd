@@ -39,3 +39,4 @@ cdef extern from "game.h":
         void switchPlayer()
         bool makeMove(int x)
         int* copyBoard()
+        vector[float] toTensor()

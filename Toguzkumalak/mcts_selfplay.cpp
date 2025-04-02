@@ -1,7 +1,7 @@
 #include "pch.h"
 #include "mcts_selfplay.h"
 
-void set_cpu_affinity(int cpu_id) {
+static void set_cpu_affinity(int cpu_id) {
     int num_cpus = std::thread::hardware_concurrency(); // Получаем количество доступных ядер
     int valid_cpu = cpu_id % num_cpus; // Гарантируем, что не выйдем за пределы
 
@@ -97,6 +97,7 @@ torch::jit::script::Module load_model(const std::string& model_path) {
 std::pair<std::vector<float>, float> net_func(torch::jit::script::Module model, Game* game) {
     // Преобразуем состояние игры в тензор
     std::vector<float> game_state = game->toTensor(); // Реализуй toTensor() в Game
+    // Вывод policy в формате [x1, x2, x3, ...]
     torch::Tensor input_tensor = torch::from_blob(game_state.data(), { 1, (2 * game->action_size) + 3 }).to(torch::kFloat);
 
     // Запускаем сеть
@@ -149,8 +150,7 @@ std::pair<int, std::vector<float>> UCT_search(torch::jit::script::Module model, 
 {
     std::vector<float> child_priors;
     float value_estimate;
-    Game* copy = new Game(*game);
-    UCTNode* root = new UCTNode(copy, -1, new UCTNode(new Game(*copy), -1, nullptr, selfplay, false), selfplay, true);
+    UCTNode* root = new UCTNode(new Game(*game), -1, new UCTNode(new Game(*game), -1, nullptr, selfplay, false), selfplay, true);
     for (int i = 0; i < num_reads; ++i)
     {
         UCTNode* leaf = root->select_leaf();
@@ -177,7 +177,7 @@ void MCTS_self_play(std::string model_path, std::string save_path, int num_games
     thread_local auto model = load_model(model_path);
     auto start_time = std::chrono::high_resolution_clock::now();
 
-    std::cout << "[" << current_time() << "] Process " << std::to_string(cpu) << " started" << "\n";
+    printf("[%s] Process %d started\n", current_time().c_str(), cpu);
 
     for (int i = 0; i < num_games; i++) {
         Game game(9);
@@ -203,11 +203,9 @@ void MCTS_self_play(std::string model_path, std::string save_path, int num_games
                 auto end_time = std::chrono::high_resolution_clock::now();
                 auto elapsed = elapsed_time(static_cast<long long>(
                     std::chrono::duration_cast<std::chrono::seconds>(end_time - start_time).count()));
-                std::cout << "[" << curr_time << "]" << "[" << elapsed << "]" <<
-                    "[" << cpu << "]-Episode " << i + 1 << "/" << std::to_string(num_games) << " " <<
-                    "Score: " << std::to_string(game.player1_score) << "-" << std::to_string(game.player2_score) << " " <<
-                    "Turns: " << std::to_string(game.fullMoves) << " " <<
-                    "Winner: " << winner_name << "\n";
+                printf("[%s][%.2f][%d]-Episode %d/%d Score: %d-%d Turns: %d Winner: %s\n",
+                    curr_time.c_str(), elapsed, cpu, i + 1, num_games,
+                    game.player1_score, game.player2_score, game.fullMoves, winner_name.c_str());
                 break;
             }
             auto result = UCT_search(model, &game, 800, true);
@@ -228,5 +226,76 @@ void MCTS_self_play(std::string model_path, std::string save_path, int num_games
     auto end_time = std::chrono::high_resolution_clock::now();
     auto elapsed = elapsed_time(static_cast<long long>(
         std::chrono::duration_cast<std::chrono::seconds>(end_time - start_time).count()));
-    std::cout << "[" << current_time() << "] Process " << std::to_string(cpu) << " finished. Elapsed: " << elapsed << "\n";
+    printf("[%s] Process %d finished. Elapsed: %.2f\n",
+        current_time().c_str(), cpu, elapsed);
+}
+
+void self_play(std::string model_path, int num_games, int depth) {
+    int white_wins = 0;
+    int black_wins = 0;
+    int ai_player = 0;
+    auto model = load_model(model_path);
+    auto start_time = std::chrono::high_resolution_clock::now();
+
+    printf("[%s] Process started\n", current_time().c_str());
+    for (int i = 0; i < num_games; ++i) {
+        Game game(9);
+        while (true) {
+            game.showBoard();
+            int action = 0;
+            int winner = game.checkWinner();
+            std::string winnerName = "not finished";
+            if (winner != GAME_CONTINUE) {
+                if (winner == GAME_WHITE_WIN) {
+                    white_wins++;
+                    winnerName = "white";
+                }
+                else if (winner == GAME_BLACK_WIN) {
+                    black_wins++;
+                    winnerName = "black";
+                }
+                else {
+                    winnerName = "draw";
+                }
+                printf("Episode %d/%d AI: %d Score: %d-%d Moves: %d, Results: %d-%d Winner: %s\n",
+                    i + 1, num_games, ai_player,
+                    game.player1_score, game.player2_score, game.fullMoves,
+                    white_wins, black_wins, winnerName.c_str());
+                break;
+            }
+            if (game.player == ai_player) {
+                auto result = net_func(model, &game);
+                std::vector<float> policy = result.first;
+                float value = result.second;
+                action = UCT_search(model, &game, 800, false).first;
+
+                // Вывод policy в формате [x1, x2, x3, ...]
+                printf("Policy: [");
+                for (size_t i = 0; i < policy.size(); i++) {
+                    printf("%f", policy[i]);
+                    if (i < policy.size() - 1) {
+                        printf(", ");
+                    }
+                }
+                printf("]\n");
+
+                printf("Value prediction: %f\n", value);
+            }
+            else {
+                action = getMove(&game, depth);
+            }
+            auto game_state = game.toTensor();
+            printf("State: [");
+            for (size_t i = 0; i < game_state.size(); i++) {
+                printf("%f", game_state[i]);
+                if (i < game_state.size() - 1) {
+                    printf(", ");
+                }
+            }
+            printf("]\n");
+            if (!game.makeMove(action)) {
+                printf("Impossible move!\n");
+            }
+        }
+    }
 }

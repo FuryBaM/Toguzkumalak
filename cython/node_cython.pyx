@@ -265,25 +265,7 @@ cpdef np.ndarray[np.float32_t, ndim=1] encodeBoard(PyGame game):
     """
     Кодирует текущее состояние игрового поля в вектор, подходящий для нейронной сети.
     """
-    cdef int tuzdyk1 = game.tuzdyk1
-    cdef int tuzdyk2 = game.tuzdyk2
-    cdef int player = game.player
-    cdef np.ndarray[np.float32_t, ndim=1] input_board = np.empty(
-        shape=((game.action_size * 2) + 3), dtype=np.float32
-    )
-    cdef int i, j
-    for i in range(2):
-        for j in range(game.action_size):
-            idx = (i * game.action_size) + j  # Индекс в одномерном массиве
-            input_board[idx] = game.getBoard()[i * game.action_size + j]  # Обращаемся к одномерному массиву board
-            if i == 0 and tuzdyk2 == j:
-                input_board[idx] = -1
-            if i == 1 and tuzdyk1 == j:
-                input_board[idx] = -1
-    input_board[game.action_size * 2] = game.player1_score
-    input_board[game.action_size * 2 + 1] = game.player2_score
-    input_board[game.action_size * 2 + 2] = game.player
-    return input_board
+    return np.array(game.thisptr.toTensor(), dtype=np.float32)
 
 cdef class PyUCTNode:
     cdef UCTNode *thisptr

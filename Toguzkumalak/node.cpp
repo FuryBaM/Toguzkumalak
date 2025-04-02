@@ -170,11 +170,11 @@ void UCTNode::backup(float value_estimate)
 		current->setNumberVisits(1.0f + current->getNumberVisits());
 		if (current->game->player == BLACK)
 		{
-			current->setTotalValue(current->getTotalValue() + (1 * value_estimate));
+			current->setTotalValue(current->getTotalValue() + (1.0f * value_estimate));
 		}
 		else if (current->game->player == WHITE)
 		{
-			current->setTotalValue(current->getTotalValue() + (-1 * value_estimate));
+			current->setTotalValue(current->getTotalValue() + (-1.0f * value_estimate));
 		}
 		current = current->parent;
 	}
