@@ -330,6 +330,7 @@ float Game::evaluate(int player)
     float tuzdyk_factor = 0.0f;
     float possible_moves_factor = getPlayerMovesCount(player);
     float row_stones_factor = getPlayerRowStones(player) - getPlayerRowStones(1 - player);
+
     if (goal == 0 || max_stones == 0) {
         return 0;
     }
@@ -339,19 +340,19 @@ float Game::evaluate(int player)
         score_factor = player1_score - player2_score;
         if (winner == WHITE)
         {
-            win_factor = max_stones - player1_score;
+            win_factor = 3.0f * (max_stones - player1_score);  // Усиление победы
         }
         else if (winner == BLACK)
         {
-            win_factor = player1_score - max_stones;
+            win_factor = -3.0f * (max_stones - player1_score); // Усиление поражения
         }
         if (tuzdyk1 != -1)
         {
-            tuzdyk_factor += (half - std::abs(tuzdyk1 - half)) * half;
+            tuzdyk_factor += (half - std::abs(tuzdyk1 - half)) * half * 1.5f; // Усиленный вес
         }
         if (tuzdyk2 != -1)
         {
-            tuzdyk_factor -= (half - std::abs(tuzdyk2 - half)) * half;
+            tuzdyk_factor -= (half - std::abs(tuzdyk2 - half)) * half * 1.5f;
         }
     }
     else if (player == BLACK)
@@ -359,19 +360,19 @@ float Game::evaluate(int player)
         score_factor = player2_score - player1_score;
         if (winner == WHITE)
         {
-            win_factor = max_stones - player2_score;
+            win_factor = -3.0f * (max_stones - player2_score);
         }
         else if (winner == BLACK)
         {
-            win_factor = player2_score - max_stones;
+            win_factor = 3.0f * (max_stones - player2_score);
         }
         if (tuzdyk2 != -1)
         {
-            tuzdyk_factor += (half - std::abs(tuzdyk2 - half)) * half;
+            tuzdyk_factor += (half - std::abs(tuzdyk2 - half)) * half * 1.5f;
         }
         if (tuzdyk1 != -1)
         {
-            tuzdyk_factor -= (half - std::abs(tuzdyk1 - half)) * half;
+            tuzdyk_factor -= (half - std::abs(tuzdyk1 - half)) * half * 1.5f;
         }
     }
 
@@ -380,10 +381,12 @@ float Game::evaluate(int player)
         win_factor += max_stones / action_size;
     }
 
-    float score = score_factor / goal +
-        row_stones_factor / max_stones +
-        tuzdyk_factor / goal +
-        possible_moves_factor / action_size;
+    // Усиление влияния каждого фактора
+    float score = (2.0f * score_factor / goal) +  // Увеличен вес счета
+        (0.1f * row_stones_factor / max_stones) +
+        (1.5f * tuzdyk_factor / goal) +
+        (0.1f * possible_moves_factor / action_size);  // Усиленный фактор ходов
+
     float symbol = score >= 0 ? 1.0f : -1.0f;
     float eval_result = symbol * std::sqrt(std::abs(score)) + (win_factor / goal);
 

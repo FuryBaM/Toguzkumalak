@@ -186,7 +186,7 @@ void MCTS_self_play(std::string model_path, std::string save_path, int num_games
         while (true) {
             int winner = game.checkWinner();
             std::string winner_name = "not finished";
-            if (winner != GAME_CONTINUE || game.fullMoves >= 100) {
+            if (winner != GAME_CONTINUE) {
                 std::string curr_time = current_time();
                 if (winner == GAME_BLACK_WIN) {
                     value = -1;
@@ -230,14 +230,14 @@ void MCTS_self_play(std::string model_path, std::string save_path, int num_games
         current_time().c_str(), cpu, elapsed.c_str());
 }
 
-void self_play(std::string model_path, int num_games, int depth) {
+void self_play(std::string model_path, int num_games, int depth, int ai_side) {
     int white_wins = 0;
     int black_wins = 0;
-    int ai_player = 0;
+    int ai_player = ai_side;
     auto model = load_model(model_path);
     auto start_time = std::chrono::high_resolution_clock::now();
 
-    printf("[%s] Process started\n", current_time().c_str());
+    printf("[%s] Process started. Alphazero side is %d\n", current_time().c_str(), ai_player);
     for (int i = 0; i < num_games; ++i) {
         Game game(9);
         while (true) {
@@ -296,6 +296,40 @@ void self_play(std::string model_path, int num_games, int depth) {
             if (!game.makeMove(action)) {
                 printf("Impossible move!\n");
             }
+        }
+    }
+}
+
+void play_against_alphazero(std::string model_path, int ai_side) {
+    auto model = load_model(model_path);
+    Game game(9);
+    int ai_player = ai_side; // AlphaZero играет за черных (1), игрок - за белых (0)
+
+    printf("[%s] Game started! Input the move as in the cell indexes 1-9. Alphazero side is %d\n", current_time().c_str(), ai_player);
+
+    while (true) {
+        game.showBoard();
+        int action = 0;
+        int winner = game.checkWinner();
+
+        if (winner != GAME_CONTINUE) {
+            std::string winnerName = (winner == GAME_WHITE_WIN) ? "white" : (winner == GAME_BLACK_WIN) ? "black" : "draw";
+            printf("Game over! Winner: %s\n", winnerName.c_str());
+            break;
+        }
+
+        if (game.player == ai_player) {
+            printf("AlphaZero`s turn...\n");
+            auto result = net_func(model, &game);
+            action = UCT_search(model, &game, 800, false).first;
+        }
+        else {
+            printf("Your turn: ");
+            std::cin >> action;
+            action = action - 1;
+        }
+        if (!game.makeMove(action)) {
+            printf("Invalid move %d!\n", action);
         }
     }
 }
