@@ -1,5 +1,6 @@
 #pragma once
 #include "node.h"
+#include "tnet.h"
 
 
 #ifdef _WIN32
@@ -42,6 +43,39 @@ struct GameState {
 
         out.write(reinterpret_cast<const char*>(values.data()), values_size * sizeof(float));
         out.close();
+    }
+
+    void load(const std::string& filename) {
+        std::ifstream in(filename, std::ios::binary);
+        if (!in) {
+            throw std::runtime_error("Failed to open dataset file");
+        }
+
+        size_t states_size, policies_size, values_size;
+        in.read(reinterpret_cast<char*>(&states_size), sizeof(states_size));
+        in.read(reinterpret_cast<char*>(&policies_size), sizeof(policies_size));
+        in.read(reinterpret_cast<char*>(&values_size), sizeof(values_size));
+
+        states.resize(states_size);
+        policies.resize(policies_size);
+        values.resize(values_size);
+
+        for (auto& state : states) {
+            size_t state_size;
+            in.read(reinterpret_cast<char*>(&state_size), sizeof(state_size));
+            state.resize(state_size);
+            in.read(reinterpret_cast<char*>(state.data()), state_size * sizeof(float));
+        }
+
+        for (auto& policy : policies) {
+            size_t policy_size;
+            in.read(reinterpret_cast<char*>(&policy_size), sizeof(policy_size));
+            policy.resize(policy_size);
+            in.read(reinterpret_cast<char*>(policy.data()), policy_size * sizeof(float));
+        }
+
+        in.read(reinterpret_cast<char*>(values.data()), values_size * sizeof(float));
+        in.close();
     }
 };
 

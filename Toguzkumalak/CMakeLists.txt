@@ -26,10 +26,12 @@ endif()
 # Исходники
 set(SOURCES
     game.cpp
+    train.cpp
     mcts_selfplay.cpp
     node.cpp
     pch.cpp
     Toguzkumalak.cpp
+    tnet.cpp
 )
 
 # Создаём исполняемый файл

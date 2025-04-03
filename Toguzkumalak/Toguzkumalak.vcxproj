@@ -175,13 +175,17 @@
     <ClCompile Include="mcts_selfplay.cpp" />
     <ClCompile Include="node.cpp" />
     <ClCompile Include="pch.cpp" />
+    <ClCompile Include="tnet.cpp" />
     <ClCompile Include="Toguzkumalak.cpp" />
+    <ClCompile Include="train.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="game.h" />
     <ClInclude Include="mcts_selfplay.h" />
     <ClInclude Include="node.h" />
     <ClInclude Include="pch.h" />
+    <ClInclude Include="tnet.h" />
+    <ClInclude Include="train.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

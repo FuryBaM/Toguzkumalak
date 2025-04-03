@@ -83,8 +83,8 @@ torch::jit::script::Module load_model(const std::string& model_path) {
     try {
         torch::jit::script::Module model;
         model = torch::jit::load(model_path);
-        model.to(torch::kCPU);
-        model.eval();
+        torch::Device device = torch::cuda::is_available() ? torch::kCUDA : torch::kCPU;
+        model.to(device);
         std::cout << "Model loaded successfully!" << std::endl;
         return model;
     }
@@ -175,6 +175,7 @@ std::pair<int, std::vector<float>> UCT_search(torch::jit::script::Module model, 
 void MCTS_self_play(std::string model_path, std::string save_path, int num_games, int cpu) {
     set_cpu_affinity(cpu);
     thread_local auto model = load_model(model_path);
+    model.eval();
     auto start_time = std::chrono::high_resolution_clock::now();
 
     printf("[%s] Process %d started\n", current_time().c_str(), cpu);
@@ -235,6 +236,7 @@ void self_play(std::string model_path, int num_games, int depth, int ai_side) {
     int black_wins = 0;
     int ai_player = ai_side;
     auto model = load_model(model_path);
+    model.eval();
     auto start_time = std::chrono::high_resolution_clock::now();
 
     printf("[%s] Process started. Alphazero side is %d\n", current_time().c_str(), ai_player);
@@ -302,6 +304,7 @@ void self_play(std::string model_path, int num_games, int depth, int ai_side) {
 
 void play_against_alphazero(std::string model_path, int ai_side) {
     auto model = load_model(model_path);
+    model.eval();
     Game game(9);
     int ai_player = ai_side; // AlphaZero играет за черных (1), игрок - за белых (0)
 
