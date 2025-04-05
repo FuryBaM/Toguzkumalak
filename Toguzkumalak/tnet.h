@@ -99,14 +99,14 @@ public:
 
 class TNET : public torch::nn::Module {
 public:
-    torch::nn::ModuleHolder<InputLayers> inputblock;
-    std::vector<torch::nn::ModuleHolder<BoardFeatures>> res_blocks;
-    torch::nn::ModuleHolder<OutputLayers> outblock;
+    std::shared_ptr<InputLayers> inputblock;
+    std::vector<std::shared_ptr<BoardFeatures>> res_blocks;
+    std::shared_ptr<OutputLayers> outblock;
 
     TNET() {
         inputblock = register_module("inputblock", std::make_shared<InputLayers>());
 
-        for (int i = 0; i < 9; ++i) {
+        for (int i = 0; i < 19; ++i) {
             res_blocks.push_back(register_module("res_" + std::to_string(i), std::make_shared<BoardFeatures>()));
         }
 

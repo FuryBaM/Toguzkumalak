@@ -2,16 +2,12 @@
 #include "train.h"
 
 void train(const std::shared_ptr<TNET>& model, const GameState& dataset, int epoch_start, int epoch_stop, int thread_id) {
-    torch::Device device = torch::cuda::is_available() ? torch::kCUDA : torch::kCPU;
-    model->to(device);
-    model->train(); // Включаем режим обучения
-
     // Получаем параметры модели
     torch::optim::Adam optimizer(model->parameters(), torch::optim::AdamOptions(1e-4));
     torch::optim::StepLR lr_scheduler(optimizer, /*step_size=*/100, /*gamma=*/0.2);
 
     int batch_size = 32;
-
+    torch::Device device = torch::cuda::is_available() ? torch::kCUDA : torch::kCPU;
     auto train_set = BoardDataset(dataset, device);
     auto data_loader = torch::data::make_data_loader(train_set.map(torch::data::transforms::Stack<>()), batch_size);
 
@@ -31,7 +27,6 @@ void train(const std::shared_ptr<TNET>& model, const GameState& dataset, int epo
             auto policy_target = batch.target.slice(1, 0, -1).to(device);
             auto value_target = batch.target.slice(1, -1).to(device);
 
-            // 🚀 ВАЖНО: вызываем forward без `torch::jit::IValue`
             auto [policy_pred, value_pred] = model->forward(inputs);
 
             auto loss = criterion.forward(value_pred.squeeze(), value_target, policy_pred, policy_target);
@@ -87,15 +82,20 @@ void train(const std::shared_ptr<TNET>& model, const GameState& dataset, int epo
 
 
 void start_training(const std::shared_ptr<TNET>& model, const std::string& dataset_path, int epochs, int num_threads) {
-    GameState dataset;
-	printf("Loading dataset from %s\n", dataset_path.c_str());
-    dataset.load(dataset_path);
-    printf("Dataset loaded: %zu states, %zu policies, %zu values\n", dataset.states.size(), dataset.policies.size(), dataset.values.size());
-    std::vector<std::thread> threads;
-    for (int i = 0; i < num_threads; ++i) {
-        threads.emplace_back(train, model, std::ref(dataset), 0, epochs, i);
+    try {
+        GameState dataset;
+        printf("Loading dataset from %s\n", dataset_path.c_str());
+        dataset.load(dataset_path);
+        printf("Dataset loaded: %zu states, %zu policies, %zu values\n", dataset.states.size(), dataset.policies.size(), dataset.values.size());
+        std::vector<std::thread> threads;
+        for (int i = 0; i < num_threads; ++i) {
+            threads.emplace_back(train, model, std::ref(dataset), 0, epochs, i);
+        }
+        for (auto& t : threads) {
+            t.join();
+        }
     }
-    for (auto& t : threads) {
-        t.join();
+    catch (const c10::Error& e) {
+        std::cerr << "Error: " << e.what() << std::endl;
     }
 }

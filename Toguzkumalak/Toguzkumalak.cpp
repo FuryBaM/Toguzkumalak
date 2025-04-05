@@ -105,6 +105,9 @@ int main(int argc, char** argv) {
         std::cout << "Number of CPUs: " << cpus << std::endl;
         std::shared_ptr<TNET> model = std::make_shared<TNET>();
         torch::load(model, model_path);
+		printf("Model loaded from %s\n", model_path.c_str());
+        torch::Device device = torch::cuda::is_available() ? torch::kCUDA : torch::kCPU;
+        model->to(device);
         model->train();
 		start_training(model, dataset_path, epochs, cpus);
 	}
