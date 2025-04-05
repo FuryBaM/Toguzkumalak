@@ -22,7 +22,7 @@ void train(const std::shared_ptr<TNET>& model, const GameState& dataset, int epo
         int batch_count = 0;
 
         for (auto& batch : *data_loader) {
-            optimizer.zero_grad();
+            optimizer.zero_grad(true);
             auto inputs = batch.data.to(device);
             auto policy_target = batch.target.slice(1, 0, -1).to(device);
             auto value_target = batch.target.slice(1, -1).to(device);

@@ -4,8 +4,6 @@ project(Toguzkumalak)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-option(USE_CUDA "Enable CUDA support" OFF)
-
 # Устанавливаем путь к libtorch (можно переопределить извне)
 if(NOT DEFINED LIBTORCH_DIR)
     get_filename_component(LIBTORCH_DIR "${CMAKE_SOURCE_DIR}/../libtorch" REALPATH)
@@ -13,32 +11,20 @@ endif()
 set(CMAKE_PREFIX_PATH "${LIBTORCH_DIR}")
 
 message(STATUS "LIBTORCH_DIR: ${LIBTORCH_DIR}")
+
+# Заглушка для `nvToolsExt`, чтобы избежать ошибки
+
+
 # Подключаем Torch
 find_package(Torch REQUIRED)
 
-if(USE_CUDA)
-    find_package(CUDA REQUIRED)
-    if(CUDA_FOUND)
-        message(STATUS "CUDA found: ${CUDA_TOOLKIT_ROOT_DIR}")
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_GLIBCXX_USE_CXX11_ABI=0 -gencode arch=compute_61,code=sm_61 -gencode arch=compute_70,code=sm_70 -gencode arch=compute_80,code=sm_80")
-        set(CMAKE_CUDA_STANDARD 14)
-        set(CMAKE_CUDA_FLAGS "--expt-extended-lambda")
-        target_link_libraries(${PROJECT_NAME} "${TORCH_LIBRARIES}" "${CUDA_LIBRARIES}")
-        target_include_directories(${PROJECT_NAME} PRIVATE ${CUDA_INCLUDE_DIRS})
-    else()
-        message(WARNING "CUDA not found, falling back to CPU mode.")
-    endif()
-else()
-    message(STATUS "CUDA support is disabled, building for CPU.")
-endif()
-
 if (WIN32)
-file(GLOB TORCH_DLLS "${LIBTORCH_DIR}/lib/*.dll")
-message(STATUS "TORCH_DLLS found: ${TORCH_DLLS}")
+    file(GLOB TORCH_DLLS "${LIBTORCH_DIR}/lib/*.dll")
+    message(STATUS "TORCH_DLLS found: ${TORCH_DLLS}")
 
-if(NOT TORCH_DLLS)
-    message(WARNING "No Torch DLLs found! Check if files exist in ${LIBTORCH_DIR}/lib")
-endif()
+    if(NOT TORCH_DLLS)
+        message(WARNING "No Torch DLLs found! Check if files exist in ${LIBTORCH_DIR}/lib")
+    endif()
 endif()
 
 # Исходники
@@ -62,23 +48,54 @@ target_precompile_headers(${PROJECT_NAME} PRIVATE pch.h)
 target_include_directories(${PROJECT_NAME} PRIVATE ${TORCH_INCLUDE_DIRS})
 target_link_libraries(${PROJECT_NAME} "${TORCH_LIBRARIES}")
 
+# Подключаем OpenMP
+find_package(OpenMP REQUIRED COMPONENTS C CXX)
+if(OpenMP_CXX_FOUND)
+    target_link_libraries(${PROJECT_NAME} OpenMP::OpenMP_CXX)
+
+    # Для GCC/Clang используем -fopenmp, а для MSVC - /openmp
+    if(MSVC)
+        target_compile_options(${PROJECT_NAME} PRIVATE /openmp)
+    else()
+        target_compile_options(${PROJECT_NAME} PRIVATE -fopenmp)
+    endif()
+endif()
+
+# Опция для включения CUDA
+option(USE_CUDA "Enable CUDA support" OFF)
+
+if(USE_CUDA)
+    # Настройка CUDA после Torch и OpenMP
+    find_package(CUDA REQUIRED)
+    if(CUDA_FOUND)
+        message(STATUS "CUDA found: ${CUDA_TOOLKIT_ROOT_DIR}")
+        
+        # Убедитесь, что флаги для компилятора CUDA (nvcc) только для CUDA файлов
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_GLIBCXX_USE_CXX11_ABI=0")
+        
+        # Флаги для CUDA компилятора
+        set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -gencode arch=compute_61,code=sm_61 -gencode arch=compute_70,code=sm_70 -gencode arch=compute_80,code=sm_80 --expt-extended-lambda")
+        
+        target_link_libraries(${PROJECT_NAME} "${TORCH_LIBRARIES}" "${CUDA_LIBRARIES}")
+        target_include_directories(${PROJECT_NAME} PRIVATE ${CUDA_INCLUDE_DIRS})
+    else()
+        message(WARNING "CUDA not found, falling back to CPU mode.")
+    endif()
+else()
+    message(STATUS "CUDA support is disabled, building for CPU.")
+endif()
+
 # Добавляем pthread для Linux
 if(UNIX)
     target_link_libraries(${PROJECT_NAME} pthread)
 endif()
 
-find_package(OpenMP REQUIRED)
-if(OpenMP_CXX_FOUND)
-    target_link_libraries(${PROJECT_NAME} OpenMP::OpenMP_CXX)
-    target_compile_options(${PROJECT_NAME} PRIVATE -fopenmp)
-endif()
-
 # Копируем DLL только в Windows
 if(WIN32)
-add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-    ${TORCH_DLLS} $<TARGET_FILE_DIR:${PROJECT_NAME}>
-)
+    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        ${TORCH_DLLS} $<TARGET_FILE_DIR:${PROJECT_NAME}>
+    )
 endif()
 
 # Устанавливаем компиляторские флаги
@@ -103,4 +120,5 @@ if(WIN32)
         LINK_FLAGS "/SUBSYSTEM:CONSOLE"
     )
 endif()
+
 add_definitions(-D_BUILD_MCTS)

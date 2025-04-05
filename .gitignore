@@ -53,5 +53,6 @@ libtorch/*
 !libtorch/.gitkeep
 *.pkl
 *.pt
+*.pth
 *.tar
 *.bin
