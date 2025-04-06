@@ -11,9 +11,7 @@ endif()
 set(CMAKE_PREFIX_PATH "${LIBTORCH_DIR}")
 
 message(STATUS "LIBTORCH_DIR: ${LIBTORCH_DIR}")
-
-# Заглушка для `nvToolsExt`, чтобы избежать ошибки
-
+set(Torch_DIR "${LIBTORCH_DIR}/share/cmake/Torch")
 
 # Подключаем Torch
 find_package(Torch REQUIRED)
