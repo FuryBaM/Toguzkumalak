@@ -107,6 +107,7 @@ int main(int argc, char** argv) {
         torch::load(model, model_path);
 		printf("Model loaded from %s\n", model_path.c_str());
         torch::Device device = torch::cuda::is_available() ? torch::kCUDA : torch::kCPU;
+		printf("Using device: %s\n", (device == torch::kCUDA ? "CUDA" : "CPU"));
         model->to(device);
         model->train();
 		start_training(model, dataset_path, epochs, cpus);
