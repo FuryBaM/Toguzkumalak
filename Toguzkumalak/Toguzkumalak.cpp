@@ -75,21 +75,26 @@ int main(int argc, char** argv) {
         std::cout << "Use open MP: " << (use_omp ? "true" : "false") << std::endl;
         std::cout << "Number of CPUs: " << cpus << std::endl;
         std::cout << "Number of games: " << num_games << std::endl;
-        if (use_omp) {
+        if (cpus > 1) {
+            if (use_omp) {
 #pragma omp parallel for
-            for (int i = 0; i < cpus; ++i) {
-                MCTS_self_play(model_path, save_path, num_games, i);
+                for (int i = 0; i < cpus; ++i) {
+                    MCTS_self_play(model_path, save_path, num_games, i);
+                }
+            }
+            else {
+                std::vector<std::future<void>> futures;
+                for (int i = 0; i < cpus; ++i) {
+                    futures.push_back(std::async(std::launch::async, MCTS_self_play, model_path, save_path, num_games, i, true));
+                }
+                for (auto& f : futures) {
+                    f.get();
+                }
             }
         }
-        else {
-            std::vector<std::future<void>> futures;
-            for (int i = 0; i < cpus; ++i) {
-                futures.push_back(std::async(std::launch::async, MCTS_self_play, model_path, save_path, num_games, i));
-            }
-            for (auto& f : futures) {
-                f.get();
-            }
-        }
+		else {
+			MCTS_self_play(model_path, save_path, num_games, 0, false);
+		}
     }
     else if (mode == "test") {
         std::cout << "Number of games: " << num_games << std::endl;

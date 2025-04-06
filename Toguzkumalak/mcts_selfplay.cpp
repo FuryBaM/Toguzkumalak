@@ -172,8 +172,10 @@ std::pair<int, std::vector<float>> UCT_search(torch::jit::script::Module model, 
     return std::make_pair(action, policy);
 }
 
-void MCTS_self_play(std::string model_path, std::string save_path, int num_games, int cpu) {
-    set_cpu_affinity(cpu);
+void MCTS_self_play(std::string model_path, std::string save_path, int num_games, int cpu, bool affinity) {
+    if (affinity) {
+        set_cpu_affinity(cpu);
+    }
     thread_local auto model = load_model(model_path);
     model.eval();
     auto start_time = std::chrono::high_resolution_clock::now();

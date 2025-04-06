@@ -88,11 +88,16 @@ void start_training(const std::shared_ptr<TNET>& model, const std::string& datas
         dataset.load(dataset_path);
         printf("Dataset loaded: %zu states, %zu policies, %zu values\n", dataset.states.size(), dataset.policies.size(), dataset.values.size());
         std::vector<std::thread> threads;
-        for (int i = 0; i < num_threads; ++i) {
-            threads.emplace_back(train, model, std::ref(dataset), 0, epochs, i);
+        if (num_threads > 1) {
+            for (int i = 0; i < num_threads; ++i) {
+                threads.emplace_back(train, model, std::ref(dataset), 0, epochs, i);
+            }
+            for (auto& t : threads) {
+                t.join();
+            }
         }
-        for (auto& t : threads) {
-            t.join();
+        else {
+			train(model, std::ref(dataset), 0, epochs, 0);
         }
     }
     catch (const c10::Error& e) {

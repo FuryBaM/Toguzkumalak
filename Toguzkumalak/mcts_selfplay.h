@@ -89,7 +89,7 @@ std::pair<std::vector<float>, float> net_func(torch::jit::script::Module model, 
 std::vector<float> softmax(const std::vector<float>& x);
 std::vector<float> get_policy(UCTNode* root, float temperature = 1.0);
 std::pair<int, std::vector<float>> UCT_search(torch::jit::script::Module model, Game* game, int num_reads, bool selfplay);
-void MCTS_self_play(std::string model_path, std::string save_path, int num_games = 25, int cpu = 0);
+void MCTS_self_play(std::string model_path, std::string save_path, int num_games = 25, int cpu = 0, bool affinity = true);
 void self_play(std::string model_path, int num_games = 1, int depth = 2, int ai_side = 0);
 void play_against_alphazero(std::string model_path, int ai_side = 0);
 
