@@ -31,14 +31,10 @@ struct BoardDataset : torch::data::datasets::Dataset<BoardDataset> {
 
 struct AlphaLoss : torch::nn::Module {
     torch::Tensor forward(torch::Tensor y_value, torch::Tensor value, torch::Tensor y_policy, torch::Tensor policy) {
-        value.set_requires_grad(true);
-        policy.set_requires_grad(true);
-
-        torch::Tensor value_error = torch::pow(value - y_value, 2);
+        torch::Tensor value_error = torch::pow(value - y_value.unsqueeze(1), 2);
         torch::Tensor policy_error = torch::sum(-policy * (y_policy + 1e-6).log(), 1);
 
-        torch::Tensor loss = torch::mean(value_error + policy_error);
-
+        torch::Tensor loss = torch::mean(value_error.view({ -1 }) + policy_error);
         return loss;
     }
 };
