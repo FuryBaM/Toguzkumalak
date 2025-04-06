@@ -106,6 +106,7 @@ int main(int argc, char** argv) {
     }
 	else if (mode == "train") {
         std::cout << "Dataset path: " << dataset_path << std::endl;
+        std::cout << "Model save path: " << save_path << std::endl;
         std::cout << "Epochs: " << epochs << std::endl;
         std::cout << "Number of CPUs: " << cpus << std::endl;
         std::shared_ptr<TNET> model = std::make_shared<TNET>();
@@ -116,6 +117,8 @@ int main(int argc, char** argv) {
         model->to(device);
         model->train();
 		start_training(model, dataset_path, epochs, cpus);
+        torch::save(model, save_path);
+        std::cout << "Model saved to " << save_path << std::endl;
 	}
     else {
         std::cerr << "Unknown mode: " << mode << std::endl;
