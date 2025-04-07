@@ -51,16 +51,20 @@ int main(int argc, char** argv) {
                 }
             }
             else {
-                std::vector<std::future<void>> futures;
+                std::vector<std::thread> threads;
                 for (int i = 0; i < cpus; ++i) {
-                    futures.emplace_back(std::async(
-                        std::launch::async,
+                    threads.emplace_back(
                         MCTS_self_play,
                         model_path, save_path, i, true, cfg
-                    ));
+                    );
                 }
-                for (auto& f : futures) 
-                    f.get();
+
+                // Дожидаемся завершения всех потоков
+                for (auto& t : threads) {
+                    if (t.joinable()) {
+                        t.join();
+                    }
+                }
             }
         }
         else {
