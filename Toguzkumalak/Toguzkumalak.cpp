@@ -18,6 +18,9 @@ int main(int argc, char** argv) {
 
     std::string mode = config.get<std::string>("mode", "selfplay", 0);
     int cpus = config.get<int>("cpus", std::thread::hardware_concurrency(), 0);
+    torch::set_num_threads(std::thread::hardware_concurrency()); // или столько, сколько ядер
+    torch::set_num_interop_threads(std::thread::hardware_concurrency());
+    omp_set_num_threads(std::thread::hardware_concurrency());
 
     std::string model_path = std::filesystem::absolute(
         config.get<std::string>("model", "./model_data/best_optimized.pt", 0)

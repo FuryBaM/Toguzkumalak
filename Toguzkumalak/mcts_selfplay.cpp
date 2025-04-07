@@ -86,14 +86,22 @@ std::string safe_filename(const std::string& save_path, int cpu, int i, const st
 torch::jit::script::Module load_model(const std::string& model_path) {
     try {
         torch::jit::script::Module model;
-        model = torch::jit::load(model_path);
         torch::Device device = torch::cuda::is_available() ? torch::kCUDA : torch::kCPU;
+        model = torch::jit::load(model_path);
         model.to(device);
         std::cout << "Model loaded successfully!" << std::endl;
         return model;
     }
     catch (const c10::Error& e) {
         std::cerr << "Error loading model: " << e.what() << std::endl;
+        exit(EXIT_FAILURE);
+    }
+    catch (const std::exception& e) {
+        std::cerr << "Standard error: " << e.what() << std::endl;
+        exit(EXIT_FAILURE);
+    }
+    catch (...) {
+        std::cerr << "Unknown fatal error occurred!" << std::endl;
         exit(EXIT_FAILURE);
     }
 }
@@ -175,13 +183,15 @@ void MCTS_self_play(std::string model_path, std::string save_path, int cpu, bool
     if (affinity) {
         set_cpu_affinity(cpu);
     }
+    
     thread_local auto model = load_model(model_path);
     model.eval();
     int num_reads = mctscfg.num_reads;
     int temperature = mctscfg.temperature;
 
     auto start_time = std::chrono::high_resolution_clock::now();
-    Game game(9);
+    thread_local Game game(9);
+    
     printf("[%s] Process %d started\n", current_time().c_str(), cpu);
     for (int i = 0; i < mctscfg.num_games; i++) {
         GameState dataset;
