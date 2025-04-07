@@ -1,0 +1,15 @@
+# Config for training
+mode train            # string: one of 'train', 'test', 'selfplay', 'human'
+
+# Model
+model ./model_data/best.pt                # string: path to the model file
+save ./model_data/best.pt       # string: path to save the trained model
+
+# Dataset and training parameters
+dataset ./datasets/combined/combined_dataset.bin    # string: path to the dataset
+epochs 100                                          # int: number of training epochs
+cpus 1                                              # int: number of CPU threads to use
+lr 1e-4                                             # double: learning rate
+lr_step 10                                          # int: step for learning rate scheduler
+gamma 0.2                                           # double: learning rate decay factor
+batch_size 32                                       # int: size of each training batch

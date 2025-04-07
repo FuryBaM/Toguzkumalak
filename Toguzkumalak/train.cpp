@@ -1,12 +1,13 @@
 ﻿#include "pch.h"
 #include "train.h"
 
-void train(const std::shared_ptr<TNET>& model, const GameState& dataset, int epoch_start, int epoch_stop, int thread_id) {
-    Config& config = Config::getInstance();
-    double lr = config.get<double>("lr", 1e-4, 0);
-    int lr_step = config.get<int>("lr_step", 100, 0);
-    double gamma = config.get<double>("gamma", 100, 0);
-    int batch_size = config.get<int>("batch_size", 32, 0);
+void train(const std::shared_ptr<TNET>& model, const GameState& dataset, int thread_id, TrainConfig cfg) {
+	int epochs = cfg.epochs;
+	double lr = cfg.lr;
+	int lr_step = cfg.lr_step;
+	double gamma = cfg.gamma;
+	int batch_size = cfg.batch_size;
+
     torch::optim::Adam optimizer(model->parameters(), torch::optim::AdamOptions(lr));
     torch::optim::StepLR lr_scheduler(optimizer, /*step_size=*/lr_step, /*gamma=*/gamma);
 
@@ -19,7 +20,7 @@ void train(const std::shared_ptr<TNET>& model, const GameState& dataset, int epo
 
     printf("[Thread %d] Training started\n", thread_id);
 
-    for (int epoch = epoch_start; epoch < epoch_stop; epoch++) {
+    for (int epoch = 0; epoch < epochs; epoch++) {
         float total_loss = 0.0;
         std::vector<float> losses_per_batch;
         int batch_count = 0;
@@ -75,7 +76,7 @@ void train(const std::shared_ptr<TNET>& model, const GameState& dataset, int epo
 }
 
 
-void start_training(const std::shared_ptr<TNET>& model, const std::string& dataset_path, int epochs, int num_threads) {
+void start_training(const std::shared_ptr<TNET>& model, const std::string& dataset_path, int num_threads, TrainConfig cfg) {
     try {
         GameState dataset;
         printf("Loading dataset from %s\n", dataset_path.c_str());
@@ -84,14 +85,14 @@ void start_training(const std::shared_ptr<TNET>& model, const std::string& datas
         std::vector<std::thread> threads;
         if (num_threads > 1) {
             for (int i = 0; i < num_threads; ++i) {
-                threads.emplace_back(train, model, dataset, 0, epochs, i);
+                threads.emplace_back(train, model, dataset, i, cfg);
             }
             for (auto& t : threads) {
                 t.join();
             }
         }
         else {
-			train(model, dataset, 0, epochs, 0);
+			train(model, dataset, 0, cfg);
         }
     }
     catch (const c10::Error& e) {

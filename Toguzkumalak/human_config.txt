@@ -1,0 +1,9 @@
+# Config for training
+mode human            # string: one of 'train', 'test', 'selfplay', 'human'
+
+# Model
+model ./model_data/best_optimized.pt                # string: path to the model file
+
+# Dataset and training parameters
+ai_side 0
+# num_reads 800

@@ -14,15 +14,11 @@ int main(int argc, char** argv) {
     }
 
     config_path = std::filesystem::absolute(config_path).string();
-    Config& config = Config::getInstance();
-    config.load(config_path);
+    Config config(config_path);
 
     std::string mode = config.get<std::string>("mode", "selfplay", 0);
     int cpus = config.get<int>("cpus", std::thread::hardware_concurrency(), 0);
-    int max_cpus = std::thread::hardware_concurrency();
-    int threads_to_use = std::min(cpus, max_cpus);
 
-    omp_set_num_threads(threads_to_use);
     std::string model_path = std::filesystem::absolute(
         config.get<std::string>("model", "./model_data/best_optimized.pt", 0)
     ).string();
@@ -60,7 +56,8 @@ int main(int argc, char** argv) {
                         model_path, save_path, i, true, cfg
                     ));
                 }
-                for (auto& f : futures) f.get();
+                for (auto& f : futures) 
+                    f.get();
             }
         }
         else {
@@ -72,20 +69,27 @@ int main(int argc, char** argv) {
         int num_games = config.get<int>("games", 1, 0);
         int depth = config.get<int>("depth", 2, 0);
         int ai_side = config.get<int>("ai_side", 0, 0);
+        int num_reads = config.get<int>("num_reads", 800, 0);
 
         std::cout << "Number of games: " << num_games << std::endl;
         std::cout << "Depth: " << depth << std::endl;
 
-        self_play(model_path, num_games, depth, ai_side);
+        self_play(model_path, num_games, depth, ai_side, num_reads);
 
     }
     else if (mode == "human") {
         int ai_side = config.get<int>("ai_side", 0, 0);
-        play_against_alphazero(model_path, ai_side);
+        int num_reads = config.get<int>("num_reads", 800, 0);
+        play_against_alphazero(model_path, ai_side, num_reads);
 
     }
     else if (mode == "train") {
         int epochs = config.get<int>("epochs", 100, 0);
+        double lr = config.get<double>("lr", 1e-4, 0);
+        int lr_step = config.get<int>("lr_step", 100, 0);
+        double gamma = config.get<double>("gamma", 100, 0);
+        int batch_size = config.get<int>("batch_size", 32, 0);
+		TrainConfig train_config(epochs, lr, lr_step, gamma, batch_size);
         std::string dataset_path = std::filesystem::absolute(
             config.get<std::string>("dataset", "./datasets/combined/combined_dataset.bin", 0)
         ).string();
@@ -108,7 +112,7 @@ int main(int argc, char** argv) {
         model->to(device);
         model->train();
 
-        start_training(model, dataset_path, epochs, cpus);
+        start_training(model, dataset_path, cpus, train_config);
         torch::save(model, save_path);
 
         std::cout << "Model saved to " << save_path << std::endl;

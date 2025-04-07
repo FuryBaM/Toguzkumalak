@@ -1,0 +1,13 @@
+# Config for mcts selfplay
+mode selfplay            # string: one of 'train', 'test', 'selfplay', 'human'
+
+# Model
+model ./model_data/best_optimized.pt                # string: path to the model file
+save ./datasets/all/       # string: path to save the datasets
+
+# Dataset and training parameters
+games 10
+openmp true
+# cpus 12
+# temperature 1.0f
+num_reads 800

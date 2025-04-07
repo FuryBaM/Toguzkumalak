@@ -1,0 +1,11 @@
+# Config for training
+mode test            # string: one of 'train', 'test', 'selfplay', 'human'
+
+# Model
+model ./model_data/best_optimized.pt                # string: path to the model file
+
+# Dataset and training parameters
+games 1
+depth 2
+ai_side 0
+# num_reads 800

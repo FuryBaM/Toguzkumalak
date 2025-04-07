@@ -1,20 +1,24 @@
-#include "pch.h"
+п»ї#include "pch.h"
 #include "mcts_selfplay.h"
 
 static void set_cpu_affinity(int cpu_id) {
-    int num_cpus = std::thread::hardware_concurrency(); // Получаем количество доступных ядер
-    int valid_cpu = cpu_id % num_cpus; // Гарантируем, что не выйдем за пределы
+    int num_cpus = std::thread::hardware_concurrency();
+    int valid_cpu = cpu_id % num_cpus;  // Р Р°СЃСЃС‡РёС‚С‹РІР°РµРј РёРЅРґРµРєСЃ СЏРґСЂР°
 
 #ifdef _WIN32
     DWORD_PTR mask = 1ULL << valid_cpu;
-    SetThreadAffinityMask(GetCurrentThread(), mask);
+    if (!SetThreadAffinityMask(GetCurrentThread(), mask)) {
+		printf("Error setting thread affinity on Windows\n");
+    }
 #endif
 
 #ifndef _WIN32
     cpu_set_t cpuset;
     CPU_ZERO(&cpuset);
     CPU_SET(valid_cpu, &cpuset);
-    sched_setaffinity(0, sizeof(cpu_set_t), &cpuset);
+    if (sched_setaffinity(0, sizeof(cpu_set_t), &cpuset) == -1) {
+		printf("Error setting thread affinity on Linux\n");
+    }
 #endif
 }
 
@@ -95,19 +99,16 @@ torch::jit::script::Module load_model(const std::string& model_path) {
 }
 
 std::pair<std::vector<float>, float> net_func(torch::jit::script::Module model, Game* game) {
-    // Преобразуем состояние игры в тензор
-    std::vector<float> game_state = game->toTensor(); // Реализуй toTensor() в Game
+    std::vector<float> game_state = game->toTensor();
     torch::Tensor input_tensor = torch::from_blob(game_state.data(), { 1, (2 * game->action_size) + 3 }).to(torch::kFloat);
-    // Запускаем сеть
+
     std::vector<torch::jit::IValue> inputs;
     inputs.push_back(input_tensor);
     auto outputs = model.forward(inputs).toTuple();
 
-    // Извлекаем policy и value
     at::Tensor policy_tensor = outputs->elements()[0].toTensor().contiguous();
     at::Tensor value_tensor = outputs->elements()[1].toTensor();
 
-    // Конвертируем policy в std::vector<float>
     std::vector<float> child_priors(policy_tensor.data_ptr<float>(),
         policy_tensor.data_ptr<float>() + policy_tensor.numel());
 
@@ -180,10 +181,9 @@ void MCTS_self_play(std::string model_path, std::string save_path, int cpu, bool
     int temperature = mctscfg.temperature;
 
     auto start_time = std::chrono::high_resolution_clock::now();
-
+    Game game(9);
     printf("[%s] Process %d started\n", current_time().c_str(), cpu);
     for (int i = 0; i < mctscfg.num_games; i++) {
-        Game game(9);
         GameState dataset;
         int value = 0;
         while (true) {
@@ -223,6 +223,7 @@ void MCTS_self_play(std::string model_path, std::string save_path, int cpu, bool
         std::fill(dataset.values.begin() + 1, dataset.values.end(), value);
         std::string filename = safe_filename(save_path, cpu, i, current_date());
         dataset.save(filename);
+		game.reset();
     }
 
     auto end_time = std::chrono::high_resolution_clock::now();
@@ -232,14 +233,12 @@ void MCTS_self_play(std::string model_path, std::string save_path, int cpu, bool
         current_time().c_str(), cpu, elapsed.c_str());
 }
 
-void self_play(std::string model_path, int num_games, int depth, int ai_side) {
+void self_play(std::string model_path, int num_games, int depth, int ai_side, int num_reads) {
     int white_wins = 0;
     int black_wins = 0;
     int ai_player = ai_side;
     auto model = load_model(model_path);
     model.eval();
-    Config& config = Config::getInstance();
-    int num_reads = config.get<int>("num_reads", 800, 0);
 
     auto start_time = std::chrono::high_resolution_clock::now();
     
@@ -305,13 +304,11 @@ void self_play(std::string model_path, int num_games, int depth, int ai_side) {
     }
 }
 
-void play_against_alphazero(std::string model_path, int ai_side) {
+void play_against_alphazero(std::string model_path, int ai_side, int num_reads) {
     auto model = load_model(model_path);
     model.eval();
     Game game(9);
-    int ai_player = ai_side; // AlphaZero играет за черных (1), игрок - за белых (0)
-    Config& config = Config::getInstance();
-    int num_reads = config.get<int>("num_reads", 800, 0);
+    int ai_player = ai_side; // AlphaZero РёРіСЂР°РµС‚ Р·Р° С‡РµСЂРЅС‹С… (1), РёРіСЂРѕРє - Р·Р° Р±РµР»С‹С… (0)
 
     printf("[%s] Game started! Input the move as in the cell indexes 1-9. Alphazero side is %d\n", current_time().c_str(), ai_player);
 

@@ -3,6 +3,22 @@
 
 const bool cuda_available = torch::cuda::is_available();
 
+struct TrainConfig {
+    int epochs = 100;
+    double lr = 1e-4;
+    int lr_step = 100;
+    double gamma = 100;
+    int batch_size = 32;
+
+    TrainConfig(int epochs,
+        double lr,
+        int lr_step,
+        double gamma,
+        int batch_size) :
+        epochs(epochs), lr(lr), lr_step(lr_step), gamma(gamma), batch_size(batch_size) {
+    }
+};
+
 struct BoardDataset : torch::data::datasets::Dataset<BoardDataset> {
     std::vector<torch::Tensor> states, policies, values;
 
@@ -39,7 +55,7 @@ struct AlphaLoss : torch::nn::Module {
     }
 };
 
-void train(const std::shared_ptr<TNET>& model, const GameState& dataset, int epoch_start, int epoch_stop, int thread_id);
-void start_training(const std::shared_ptr<TNET>& model, const std::string& dataset_path, int epochs, int num_threads);
+void train(const std::shared_ptr<TNET>& model, const GameState& dataset, int thread_id, TrainConfig cfg);
+void start_training(const std::shared_ptr<TNET>& model, const std::string& dataset_path, int num_threads, TrainConfig cfg);
 
 

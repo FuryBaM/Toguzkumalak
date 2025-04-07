@@ -3,9 +3,8 @@
 
 class Config {
 public:
-	static Config& getInstance() {
-		static Config instance;
-		return instance;
+	explicit Config(const std::string& path) {
+		load(path);
 	}
 	void load(const std::string& path);
 	template<typename T>
@@ -14,7 +13,6 @@ public:
 	T get(const std::string& key, const T& default_value, size_t index) const;
 	void showAll();
 private:
-	Config() {}
 	std::unordered_map<std::string, std::vector<std::string>> data_;
 	Config(const Config&) = delete;
 	Config& operator=(const Config&) = delete;
