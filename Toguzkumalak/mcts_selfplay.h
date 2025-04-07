@@ -11,6 +11,20 @@
 #include <fstream>
 #endif
 
+struct MCTSSelfPlayConfig {
+    int num_games = 10;
+    int num_reads = 800;
+    float temperature = 1.0f;
+
+    MCTSSelfPlayConfig() = default;
+
+    MCTSSelfPlayConfig(int num_games,
+        int num_reads,
+        float temperature) :
+        num_games(num_games), num_reads(num_reads), temperature(temperature) {
+    }
+};
+
 struct GameState {
     std::vector<std::vector<float>> states;
     std::vector<std::vector<float>> policies;
@@ -87,9 +101,9 @@ std::string current_date();
 torch::jit::script::Module load_model(const std::string& model_path);
 std::pair<std::vector<float>, float> net_func(torch::jit::script::Module model, Game* game);
 std::vector<float> softmax(const std::vector<float>& x);
-std::vector<float> get_policy(UCTNode* root, float temperature = 1.0);
-std::pair<int, std::vector<float>> UCT_search(torch::jit::script::Module model, Game* game, int num_reads, bool selfplay);
-void MCTS_self_play(std::string model_path, std::string save_path, int num_games = 25, int cpu = 0, bool affinity = true);
+std::vector<float> get_policy(UCTNode* root, float temperature = 1.0f);
+std::pair<int, std::vector<float>> UCT_search(torch::jit::script::Module model, Game* game, int num_reads, bool selfplay, float temperature);
+void MCTS_self_play(std::string model_path, std::string save_path, int cpu = 0, bool affinity = true, MCTSSelfPlayConfig mctscfg = MCTSSelfPlayConfig());
 void self_play(std::string model_path, int num_games = 1, int depth = 2, int ai_side = 0);
 void play_against_alphazero(std::string model_path, int ai_side = 0);
 

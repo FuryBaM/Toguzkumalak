@@ -97,9 +97,7 @@ torch::jit::script::Module load_model(const std::string& model_path) {
 std::pair<std::vector<float>, float> net_func(torch::jit::script::Module model, Game* game) {
     // Преобразуем состояние игры в тензор
     std::vector<float> game_state = game->toTensor(); // Реализуй toTensor() в Game
-    // Вывод policy в формате [x1, x2, x3, ...]
     torch::Tensor input_tensor = torch::from_blob(game_state.data(), { 1, (2 * game->action_size) + 3 }).to(torch::kFloat);
-
     // Запускаем сеть
     std::vector<torch::jit::IValue> inputs;
     inputs.push_back(input_tensor);
@@ -146,7 +144,7 @@ std::vector<float> get_policy(UCTNode* root, float temperature) {
     return softmax(log_visits);
 }
 
-std::pair<int, std::vector<float>> UCT_search(torch::jit::script::Module model, Game* game, int num_reads, bool selfplay)
+std::pair<int, std::vector<float>> UCT_search(torch::jit::script::Module model, Game* game, int num_reads, bool selfplay, float temperature)
 {
     std::vector<float> child_priors;
     float value_estimate;
@@ -166,23 +164,25 @@ std::pair<int, std::vector<float>> UCT_search(torch::jit::script::Module model, 
         leaf->expand(child_priors);
         leaf->backup(value_estimate);
     }
-    std::vector<float> policy = get_policy(root);
+    std::vector<float> policy = get_policy(root, temperature);
     int action = argmax(root->child_number_visits);
     clearTree(root);
     return std::make_pair(action, policy);
 }
 
-void MCTS_self_play(std::string model_path, std::string save_path, int num_games, int cpu, bool affinity) {
+void MCTS_self_play(std::string model_path, std::string save_path, int cpu, bool affinity, MCTSSelfPlayConfig mctscfg) {
     if (affinity) {
         set_cpu_affinity(cpu);
     }
     thread_local auto model = load_model(model_path);
     model.eval();
+    int num_reads = mctscfg.num_reads;
+    int temperature = mctscfg.temperature;
+
     auto start_time = std::chrono::high_resolution_clock::now();
 
     printf("[%s] Process %d started\n", current_time().c_str(), cpu);
-
-    for (int i = 0; i < num_games; i++) {
+    for (int i = 0; i < mctscfg.num_games; i++) {
         Game game(9);
         GameState dataset;
         int value = 0;
@@ -207,15 +207,14 @@ void MCTS_self_play(std::string model_path, std::string save_path, int num_games
                 auto elapsed = elapsed_time(static_cast<long long>(
                     std::chrono::duration_cast<std::chrono::seconds>(end_time - start_time).count()));
                 printf("[%s][%s][%d]-Episode %d/%d Score: %d-%d Turns: %d Winner: %s\n",
-                    curr_time.c_str(), elapsed.c_str(), cpu, i + 1, num_games,
+                    curr_time.c_str(), elapsed.c_str(), cpu, i + 1, mctscfg.num_games,
                     game.player1_score, game.player2_score, game.fullMoves, winner_name.c_str());
                 break;
             }
-            auto result = UCT_search(model, &game, 800, true);
+            auto result = UCT_search(model, &game, num_reads, true, temperature);
             int root_action = result.first;
             std::vector<float> policy = result.second;
             auto state = game.toTensor();
-            float temperature = 1.0f;
             dataset.states.push_back(state);
             dataset.policies.push_back(policy);
             dataset.values.push_back(0);
@@ -239,8 +238,11 @@ void self_play(std::string model_path, int num_games, int depth, int ai_side) {
     int ai_player = ai_side;
     auto model = load_model(model_path);
     model.eval();
-    auto start_time = std::chrono::high_resolution_clock::now();
+    Config& config = Config::getInstance();
+    int num_reads = config.get<int>("num_reads", 800, 0);
 
+    auto start_time = std::chrono::high_resolution_clock::now();
+    
     printf("[%s] Process started. Alphazero side is %d\n", current_time().c_str(), ai_player);
     for (int i = 0; i < num_games; ++i) {
         Game game(9);
@@ -271,9 +273,8 @@ void self_play(std::string model_path, int num_games, int depth, int ai_side) {
                 auto result = net_func(model, &game);
                 std::vector<float> policy = result.first;
                 float value = result.second;
-                action = UCT_search(model, &game, 800, false).first;
+                action = UCT_search(model, &game, num_reads, false, 1.0f).first;
 
-                // Вывод policy в формате [x1, x2, x3, ...]
                 printf("Policy: [");
                 for (size_t i = 0; i < policy.size(); i++) {
                     printf("%f", policy[i]);
@@ -309,6 +310,8 @@ void play_against_alphazero(std::string model_path, int ai_side) {
     model.eval();
     Game game(9);
     int ai_player = ai_side; // AlphaZero играет за черных (1), игрок - за белых (0)
+    Config& config = Config::getInstance();
+    int num_reads = config.get<int>("num_reads", 800, 0);
 
     printf("[%s] Game started! Input the move as in the cell indexes 1-9. Alphazero side is %d\n", current_time().c_str(), ai_player);
 
@@ -326,7 +329,7 @@ void play_against_alphazero(std::string model_path, int ai_side) {
         if (game.player == ai_player) {
             printf("AlphaZero`s turn...\n");
             auto result = net_func(model, &game);
-            action = UCT_search(model, &game, 800, false).first;
+            action = UCT_search(model, &game, num_reads, false, 1.0f).first;
         }
         else {
             printf("Your turn: ");

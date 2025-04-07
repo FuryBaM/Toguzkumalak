@@ -171,6 +171,7 @@
     </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="config.cpp" />
     <ClCompile Include="game.cpp" />
     <ClCompile Include="mcts_selfplay.cpp" />
     <ClCompile Include="node.cpp" />
@@ -180,6 +181,7 @@
     <ClCompile Include="train.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="config.h" />
     <ClInclude Include="game.h" />
     <ClInclude Include="mcts_selfplay.h" />
     <ClInclude Include="node.h" />

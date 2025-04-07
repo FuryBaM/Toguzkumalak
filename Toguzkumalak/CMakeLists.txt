@@ -34,6 +34,7 @@ set(SOURCES
     pch.cpp
     Toguzkumalak.cpp
     tnet.cpp
+    config.cpp
 )
 
 # Создаём исполняемый файл

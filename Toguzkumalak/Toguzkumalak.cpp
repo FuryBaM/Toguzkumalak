@@ -4,124 +4,119 @@
 #include "tnet.h"
 
 int main(int argc, char** argv) {
-    int num_games = 25;
-    int cpus = std::thread::hardware_concurrency();
-    omp_set_num_threads(cpus);
-    std::string save_path = "";
-	std::string dataset_path = "";
-    std::string model_path = "";
-    bool use_omp = false;
-    std::string mode = "selfplay";
-    int depth = 2;
-    int ai_side = 0;
-    int epochs = 100;
+    std::string config_path = "config.txt";
 
     for (int i = 1; i < argc; ++i) {
         std::string arg = argv[i];
-        if (arg == "--games" && i + 1 < argc) {
-            num_games = std::stoi(argv[++i]);
-        }
-        else if (arg == "--cpus" && i + 1 < argc) {
-            cpus = std::stoi(argv[++i]);
-        }
-        else if (arg == "--save" && i + 1 < argc) {
-            save_path = argv[++i];
-        }
-        else if (arg == "--model" && i + 1 < argc) {
-            model_path = argv[++i];
-        }
-        else if (arg == "--omp") {
-            use_omp = true;
-        }
-        else if (arg == "--depth" && i + 1 < argc) {
-            depth = std::stoi(argv[++i]);
-        }
-        else if (arg == "--aiside" && i + 1 < argc) {
-            ai_side = std::stoi(argv[++i]);
-        }
-        else if (arg == "--mode" && i + 1 < argc) {
-            mode = argv[++i];
-        }
-		else if (arg == "--dataset" && i + 1 < argc) {
-			dataset_path = argv[++i];
-		}
-        else if (arg == "--epochs" && i + 1 < argc) {
-            epochs = std::stoi(argv[++i]);
+        if (arg == "--config" && i + 1 < argc) {
+            config_path = argv[++i];
         }
     }
 
-    if (save_path.empty()) {
-        save_path = "./datasets/all/";
-    }
-    if (model_path.empty()) {
-        model_path = "./model_data/best.pt";
-    }
-	if (dataset_path.empty()) {
-		dataset_path = "./datasets/combined/combined_dataset.bin";
-	}
-	if (mode != "selfplay" && mode != "test" && mode != "human" && mode != "train") {
-		std::cerr << "Invalid mode. Use 'selfplay', 'test', 'train' or 'human'." << std::endl;
-		return 1;
-	}
-    save_path = std::filesystem::absolute(save_path).string();
-    model_path = std::filesystem::absolute(model_path).string();
-    dataset_path = std::filesystem::absolute(dataset_path).string();
+    config_path = std::filesystem::absolute(config_path).string();
+    Config& config = Config::getInstance();
+    config.load(config_path);
+
+    std::string mode = config.get<std::string>("mode", "selfplay", 0);
+    int cpus = config.get<int>("cpus", std::thread::hardware_concurrency(), 0);
+    int max_cpus = std::thread::hardware_concurrency();
+    int threads_to_use = std::min(cpus, max_cpus);
+
+    omp_set_num_threads(threads_to_use);
+    std::string model_path = std::filesystem::absolute(
+        config.get<std::string>("model", "./model_data/best_optimized.pt", 0)
+    ).string();
 
     std::cout << "Mode: " << mode << std::endl;
     std::cout << "Model path: " << model_path << std::endl;
 
     if (mode == "selfplay") {
+        int num_games = config.get<int>("games", 10, 0);
+        bool use_omp = config.get<bool>("openmp", false, 0);
+        std::string save_path = config.get<std::string>("save", "./datasets/all/", 0);
+        int num_reads = config.get<int>("num_reads", 800, 0);
+        float temperature = config.get<float>("temperature", 1.0f, 0);
+
+        MCTSSelfPlayConfig cfg(num_games, num_reads, temperature);
+
         std::cout << "Dataset save path: " << save_path << std::endl;
-        std::cout << "Use open MP: " << (use_omp ? "true" : "false") << std::endl;
+        std::cout << "Use OpenMP: " << (use_omp ? "true" : "false") << std::endl;
         std::cout << "Number of CPUs: " << cpus << std::endl;
         std::cout << "Number of games: " << num_games << std::endl;
+
         if (cpus > 1) {
             if (use_omp) {
 #pragma omp parallel for
                 for (int i = 0; i < cpus; ++i) {
-                    MCTS_self_play(model_path, save_path, num_games, i);
+                    MCTS_self_play(model_path, save_path, i, true, cfg);
                 }
             }
             else {
                 std::vector<std::future<void>> futures;
                 for (int i = 0; i < cpus; ++i) {
-                    futures.push_back(std::async(std::launch::async, MCTS_self_play, model_path, save_path, num_games, i, true));
+                    futures.emplace_back(std::async(
+                        std::launch::async,
+                        MCTS_self_play,
+                        model_path, save_path, i, true, cfg
+                    ));
                 }
-                for (auto& f : futures) {
-                    f.get();
-                }
+                for (auto& f : futures) f.get();
             }
         }
-		else {
-			MCTS_self_play(model_path, save_path, num_games, 0, false);
-		}
+        else {
+            MCTS_self_play(model_path, save_path, 0, false, cfg);
+        }
+
     }
     else if (mode == "test") {
+        int num_games = config.get<int>("games", 1, 0);
+        int depth = config.get<int>("depth", 2, 0);
+        int ai_side = config.get<int>("ai_side", 0, 0);
+
         std::cout << "Number of games: " << num_games << std::endl;
         std::cout << "Depth: " << depth << std::endl;
+
         self_play(model_path, num_games, depth, ai_side);
+
     }
     else if (mode == "human") {
+        int ai_side = config.get<int>("ai_side", 0, 0);
         play_against_alphazero(model_path, ai_side);
+
     }
-	else if (mode == "train") {
+    else if (mode == "train") {
+        int epochs = config.get<int>("epochs", 100, 0);
+        std::string dataset_path = std::filesystem::absolute(
+            config.get<std::string>("dataset", "./datasets/combined/combined_dataset.bin", 0)
+        ).string();
+        std::string save_path = std::filesystem::absolute(
+            config.get<std::string>("save", "./model_data/best_optimized.pt", 0)
+        ).string();
+
         std::cout << "Dataset path: " << dataset_path << std::endl;
         std::cout << "Model save path: " << save_path << std::endl;
         std::cout << "Epochs: " << epochs << std::endl;
         std::cout << "Number of CPUs: " << cpus << std::endl;
+
         std::shared_ptr<TNET> model = std::make_shared<TNET>();
         torch::load(model, model_path);
-		printf("Model loaded from %s\n", model_path.c_str());
+        std::printf("Model loaded from %s\n", model_path.c_str());
+
         torch::Device device = torch::cuda::is_available() ? torch::kCUDA : torch::kCPU;
-		printf("Using device: %s\n", (device == torch::kCUDA ? "CUDA" : "CPU"));
+        std::printf("Using device: %s\n", device == torch::kCUDA ? "CUDA" : "CPU");
+
         model->to(device);
         model->train();
-		start_training(model, dataset_path, epochs, cpus);
+
+        start_training(model, dataset_path, epochs, cpus);
         torch::save(model, save_path);
+
         std::cout << "Model saved to " << save_path << std::endl;
-	}
+
+    }
     else {
-        std::cerr << "Unknown mode: " << mode << std::endl;
+        std::cerr << "Invalid mode: " << mode << std::endl;
+        std::cerr << "Available modes: selfplay, test, train, human" << std::endl;
         return 1;
     }
 

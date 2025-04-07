@@ -2,11 +2,14 @@
 #include "train.h"
 
 void train(const std::shared_ptr<TNET>& model, const GameState& dataset, int epoch_start, int epoch_stop, int thread_id) {
-    // Получаем параметры модели
-    torch::optim::Adam optimizer(model->parameters(), torch::optim::AdamOptions(1e-4));
-    torch::optim::StepLR lr_scheduler(optimizer, /*step_size=*/100, /*gamma=*/0.2);
+    Config& config = Config::getInstance();
+    double lr = config.get<double>("lr", 1e-4, 0);
+    int lr_step = config.get<int>("lr_step", 100, 0);
+    double gamma = config.get<double>("gamma", 100, 0);
+    int batch_size = config.get<int>("batch_size", 32, 0);
+    torch::optim::Adam optimizer(model->parameters(), torch::optim::AdamOptions(lr));
+    torch::optim::StepLR lr_scheduler(optimizer, /*step_size=*/lr_step, /*gamma=*/gamma);
 
-    int batch_size = 32;
     torch::Device device = torch::cuda::is_available() ? torch::kCUDA : torch::kCPU;
     auto train_set = BoardDataset(dataset, device);
     auto data_loader = torch::data::make_data_loader(train_set.map(torch::data::transforms::Stack<>()), batch_size);
@@ -30,15 +33,6 @@ void train(const std::shared_ptr<TNET>& model, const GameState& dataset, int epo
             auto [policy_pred, value_pred] = model->forward(inputs);
 
             auto loss = criterion.forward(value_pred.squeeze(), value_target, policy_pred, policy_target);
-
-            if (loss.isnan().item<bool>()) {
-                std::cerr << "[Thread " << thread_id << "] ERROR: Loss is NaN!" << std::endl;
-                exit(1);
-            }
-            if (!loss.requires_grad()) {
-                std::cerr << "[Thread " << thread_id << "] ERROR: Loss requires_grad is false!" << std::endl;
-                exit(1);
-            }
 
             loss.backward();
             optimizer.step();
@@ -90,14 +84,14 @@ void start_training(const std::shared_ptr<TNET>& model, const std::string& datas
         std::vector<std::thread> threads;
         if (num_threads > 1) {
             for (int i = 0; i < num_threads; ++i) {
-                threads.emplace_back(train, model, std::ref(dataset), 0, epochs, i);
+                threads.emplace_back(train, model, dataset, 0, epochs, i);
             }
             for (auto& t : threads) {
                 t.join();
             }
         }
         else {
-			train(model, std::ref(dataset), 0, epochs, 0);
+			train(model, dataset, 0, epochs, 0);
         }
     }
     catch (const c10::Error& e) {
