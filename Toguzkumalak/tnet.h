@@ -122,39 +122,58 @@ public:
         return outblock->forward(x);
     }
 
-	void save_weights(const std::string& path) {
+    void save_weights(const std::string& path) {
         std::ofstream file(path, std::ios::binary);
-		to(torch::kCPU);
-		for (const auto& param : parameters()) {
-			auto data = param.data().contiguous(); // Tensor
-			auto size = data.numel(); // int64_t
-            file.write(reinterpret_cast<const char*>(&size), sizeof(size));
-            file.write(reinterpret_cast<const char*>(data.data_ptr<float>()), size * sizeof(float));
-		}
+        to(torch::kCPU);
+
+        // Проходим по именам и параметрам
+        for (const auto& named_param : named_parameters()) {
+            const auto& name = named_param.key();
+            const auto& param = named_param.value();
+
+            // Сохраняем длину имени параметра
+            int64_t name_length = name.size();
+            file.write(reinterpret_cast<char*>(&name_length), sizeof(name_length)); // Длина имени
+            file.write(name.c_str(), name_length); // Имя параметра
+
+            // Сохраняем данные параметра
+            auto data = param.data().contiguous();
+            auto size = data.numel();
+            file.write(reinterpret_cast<char*>(&size), sizeof(size)); // Размер параметра
+            file.write(reinterpret_cast<char*>(data.data_ptr<float>()), size * sizeof(float)); // Данные параметра
+        }
+
         file.close();
-	}
+    }
 
     void load_weights(const std::string& path) {
         std::ifstream file(path, std::ios::binary);
-        if (!file) {
-            throw std::runtime_error("Failed to open file for reading: " + path);
-        }
 
-        for (auto& param : parameters()) {
+        // Проходим по именам и параметрам
+        for (auto& named_param : named_parameters()) {
+            auto& param = named_param.value();
+
+            // Читаем длину имени параметра
+            int64_t name_length;
+            file.read(reinterpret_cast<char*>(&name_length), sizeof(name_length));
+
+            std::string name(name_length, ' ');
+            file.read(&name[0], name_length);  // Чтение имени параметра
+
+            if (name != named_param.key()) {
+                std::cerr << "Warning: Expected parameter name '" << named_param.key()
+                    << "', but found '" << name << "'\n";
+                continue;  // Пропускаем этот параметр, если имя не совпадает
+            }
+
+            // Чтение размера и данных параметра
             int64_t size;
-            if (!file.read(reinterpret_cast<char*>(&size), sizeof(size))) {
-                throw std::runtime_error("Failed to read size of parameter.");
-            }
-
-            if (size == 0) {
-                throw std::runtime_error("Invalid parameter size read from file.");
-            }
+            file.read(reinterpret_cast<char*>(&size), sizeof(size));
 
             std::vector<float> param_data(size);
-            if (!file.read(reinterpret_cast<char*>(param_data.data()), size * sizeof(float))) {
-                throw std::runtime_error("Failed to read parameter data.");
-            }
+            file.read(reinterpret_cast<char*>(param_data.data()), size * sizeof(float));
 
+            // Копирование данных в параметр
             param.data().copy_(torch::tensor(param_data).view_as(param));
         }
 

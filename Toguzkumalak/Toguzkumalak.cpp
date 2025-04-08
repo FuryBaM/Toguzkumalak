@@ -77,12 +77,25 @@ int main(int argc, char** argv) {
         int depth = config.get<int>("depth", 2, 0);
         int ai_side = config.get<int>("ai_side", 0, 0);
         int num_reads = config.get<int>("num_reads", 800, 0);
+		bool is_native = config.get<bool>("is_native", 0, 0);
 
         std::cout << "Number of games: " << num_games << std::endl;
         std::cout << "Depth: " << depth << std::endl;
 
-        self_play(model_path, num_games, depth, ai_side, num_reads);
-
+		if (is_native) {
+			std::cout << "Using native MCTS" << std::endl;
+            try {
+                self_play_native(model_path, num_games, depth, ai_side, num_reads);
+            }
+			catch (const std::exception& e) {
+				std::cerr << "Error: " << e.what() << std::endl;
+				return 1;
+			}
+		}
+		else {
+			std::cout << "Using TorchScript MCTS" << std::endl;
+            self_play(model_path, num_games, depth, ai_side, num_reads);
+		}
     }
     else if (mode == "human") {
         int ai_side = config.get<int>("ai_side", 0, 0);
@@ -96,6 +109,7 @@ int main(int argc, char** argv) {
         int lr_step = config.get<int>("lr_step", 100, 0);
         double gamma = config.get<double>("gamma", 100, 0);
         int batch_size = config.get<int>("batch_size", 32, 0);
+		bool load_model = config.get<bool>("load_model", false, 0);
 		TrainConfig train_config(epochs, lr, lr_step, gamma, batch_size);
         std::string dataset_path = std::filesystem::absolute(
             config.get<std::string>("dataset", "./datasets/combined/combined_dataset.bin", 0)
@@ -110,8 +124,17 @@ int main(int argc, char** argv) {
         std::cout << "Number of CPUs: " << cpus << std::endl;
 
         std::shared_ptr<TNET> model = std::make_shared<TNET>();
-        //torch::load(model, model_path);
-		model->load_weights(model_path);
+		if (load_model) {
+			std::cout << "Loading model from: " << model_path << std::endl;
+			try {
+				torch::load(model, model_path);
+			}
+			catch (const c10::Error& e) {
+				std::cerr << "Error loading model: " << e.what() << std::endl;
+				return 1;
+			}
+		}
+		//model->load_weights(model_path);
         std::printf("Model loaded from %s\n", model_path.c_str());
 
         torch::Device device = torch::cuda::is_available() ? torch::kCUDA : torch::kCPU;
@@ -119,8 +142,8 @@ int main(int argc, char** argv) {
 
         model->to(device);
         model->train();
-
-        start_training(model, dataset_path, cpus, train_config);
+        if (epochs > 0)
+            start_training(model, dataset_path, cpus, train_config);
 		model->to(torch::kCPU);
         torch::save(model, save_path);
         std::cout << "Model saved to " << save_path << std::endl;

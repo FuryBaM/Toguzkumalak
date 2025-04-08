@@ -1,6 +1,5 @@
 import struct
 
-
 def compare_weight_files(path1, path2):
     with open(path1, "rb") as f1, open(path2, "rb") as f2:
         index = 0

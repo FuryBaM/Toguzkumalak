@@ -145,7 +145,7 @@ class TNET(nn.Module):
     #     to(torch::kCPU);
     #     for (const auto& param : parameters()) {
     #         auto data = param.data().contiguous();
-    #         auto size = data.numel();
+    #         unsigned long long size = data.numel();
     #         file.write(reinterpret_cast<const char*>(&size), sizeof(size));
     #         file.write(reinterpret_cast<const char*>(data.data_ptr<float>()), size * sizeof(float));
     #     }
@@ -153,18 +153,34 @@ class TNET(nn.Module):
     # }
     
     def save_binary_weights(self, path):
+        self.to(torch.device('cpu'))
         with open(path, "wb") as file:
-            for param in self.parameters():
-                data = param.data.contiguous().cpu().view(-1).numpy().astype("float32")
+            for name, param in self.named_parameters():  # Используем named_parameters
+                data = param.data.contiguous().cpu().view(-1).numpy().astype(np.float32)
                 size = len(data)
-                file.write(struct.pack('Q', size))
-                file.write(struct.pack(f'{size}f', *data))
-    
+                # Записываем имя параметра (для проверки, что загружаем тот же параметр)
+                name_len = len(name)
+                file.write(struct.pack('<q', name_len))  # Длина имени параметра
+                file.write(name.encode('utf-8'))  # Сохраняем имя параметра в байтовом виде
+                # Записываем размер и данные параметра
+                file.write(struct.pack('<q', size))  # Длина данных параметра
+                file.write(data.tobytes())  # Запись данных параметра
+
     def load_binary_weights(self, path: str):
+        self.to(torch.device('cpu'))
         with open(path, "rb") as file:
-            for param in self.parameters():
-                size = struct.unpack('Q', file.read(8))[0]
-                param_data = struct.unpack(f'{size}f', file.read(size * 4))
+            for name, param in self.named_parameters():
+                # Чтение имени параметра
+                name_len = struct.unpack('<q', file.read(8))[0]
+                name_read = file.read(name_len).decode('utf-8')
+                
+                if name_read != name:
+                    print(f"Warning: Mismatch in parameter name. Expected '{name}', but found '{name_read}'")
+                    continue  # Если имя параметра не совпадает, пропускаем его
+
+                # Чтение размера и данных параметра
+                size = struct.unpack('<q', file.read(8))[0]
+                param_data = np.frombuffer(file.read(size * 4), dtype=np.float32)
                 param.data.copy_(torch.tensor(param_data).view_as(param))
     
     def act(self, state, game):
@@ -180,17 +196,75 @@ class TNET(nn.Module):
                 act_values[i] = float("-inf")
         return torch.argmax(act_values)  # лучшее действие
     
+class AlphaLoss(torch.nn.Module):
+    """Custom loss function for AlphaZero-like training."""
+
+    def forward(self, y_value, value, y_policy, policy):
+        value_error = (value - y_value) ** 2
+        policy_error = torch.sum((-policy * (1e-6 + y_policy).log()), dim=1)
+        return (value_error.view(-1) + policy_error).mean()
+    
+def simulate_train(model):
+    input_data = torch.randn(32, 2*ACTION_SIZE+3)
+    policy = torch.randn(32, 9)
+    value = torch.randn(32, 1)
+    # Определяем критерий и оптимизатор
+    criterion = AlphaLoss()
+    optimizer = optim.SGD(model.parameters(), lr=0.01)
+
+    # Цикл обучения
+    model.train()
+    for epoch in range(100):
+        optimizer.zero_grad()
+        policy_pred, value_pred = model(input_data)
+        loss = criterion(value_pred, value, policy_pred, policy)
+        loss.backward()
+        optimizer.step()
+        if epoch % 10 == 0:
+            print(f"Epoch {epoch}: Loss = {loss.item()}")
+    print("Training completed.")
+    
 if __name__ == "__main__":
     model = TNET()
-    model.load_binary_weights("C:/Users/Akzhol/source/repos/Toguzkumalak/Toguzkumalak/build/Release/model_data/weights.dat")
+    model.eval()
+    
+    # Генерация входных данных
     input_data = torch.tensor([9.000000, 9.000000, 9.000000, 9.000000, 9.000000, 9.000000, 9.000000, 9.000000, 
                             9.000000, 9.000000, 9.000000, 9.000000, 9.000000, 9.000000, 9.000000, 9.000000, 
                             9.000000, 9.000000, 0.000000, 0.000000, 0.000000], dtype=torch.float32).view(1, -1)
-    model.eval()
+    
+    # Перед тренировкой
     output = model(input_data)
+    print("Before training:")
     print(output)
-    _input = torch.randn(1, (2 * ACTION_SIZE) + 3)
-    traced_model = torch.jit.trace(model, _input, strict=False)
-    frozen_model = torch.jit.freeze(traced_model)
-    optimized_model = torch.jit.optimize_for_inference(frozen_model)
-    optimized_model.save("C:/Users/Akzhol/source/repos/Toguzkumalak/Toguzkumalak/build/Release/model_data/best_optimized.pt")
+
+    # Обучение модели
+    simulate_train(model)
+    input_data = torch.tensor([9.000000, 9.000000, 9.000000, 9.000000, 9.000000, 9.000000, 9.000000, 9.000000, 
+                            9.000000, 9.000000, 9.000000, 9.000000, 9.000000, 9.000000, 9.000000, 9.000000, 
+                            9.000000, 9.000000, 0.000000, 0.000000, 0.000000], dtype=torch.float32).view(1, -1)
+    # После тренировки
+    input_data_batch = input_data.repeat(2, 1)
+    output = model(input_data_batch)
+    print("Before save:")
+    print(output)
+    model.eval()
+    # Сохранение весов
+    #model.save_binary_weights(r"C:\Users\Akzhol\source\repos\Toguzkumalak\Toguzkumalak\build\Release\model_data\py_weights.dat")
+    input_data = torch.tensor([9.000000, 9.000000, 9.000000, 9.000000, 9.000000, 9.000000, 9.000000, 9.000000, 
+                            9.000000, 9.000000, 9.000000, 9.000000, 9.000000, 9.000000, 9.000000, 9.000000, 
+                            9.000000, 9.000000, 0.000000, 0.000000, 0.000000], dtype=torch.float32).view(1, -1)
+    # Загрузка весов в новую модель
+    model_loaded = TNET()
+    model_loaded.load_binary_weights(r"C:\Users\Akzhol\source\repos\Toguzkumalak\Toguzkumalak\build\Release\model_data\weights.dat")
+    model_loaded.eval()  # Переводим в eval перед использованием
+
+    # После загрузки весов
+    output_loaded = model_loaded(input_data)
+    print("After loading weights:")
+    print(output_loaded)
+
+    # Печать параметров модели (если нужно для диагностики)
+    # print("Model parameters after loading weights:")
+    # for name, param in model_loaded.named_parameters():
+    #     print(f"{name}: {param}")

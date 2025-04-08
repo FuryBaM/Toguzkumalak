@@ -126,15 +126,18 @@ std::pair<std::vector<float>, float> net_func(torch::jit::script::Module model, 
 }
 
 std::pair<std::vector<float>, float> net_func(std::shared_ptr<TNET> model, Game* game) {
+	torch::Device device = torch::cuda::is_available() ? torch::kCUDA : torch::kCPU;
     std::vector<float> game_state = game->toTensor();
-    torch::Tensor input_tensor = torch::from_blob(game_state.data(), { 1, (2 * game->action_size) + 3 }).to(torch::kFloat);
-
-    model->eval();
+    torch::Tensor input_tensor = torch::from_blob(game_state.data(), { 1, (2 * game->action_size) + 3 }).to(torch::kFloat).to(device);
 
     auto outputs = model->forward(input_tensor);
 
-    auto policy_tensor = std::get<0>(outputs).contiguous();
-    auto value_tensor = std::get<1>(outputs);
+    if (std::get<0>(outputs).dim() == 0 || std::get<1>(outputs).dim() == 0) {
+        throw std::runtime_error("Model output has unexpected dimensions.");
+    }
+
+    auto policy_tensor = std::get<0>(outputs).contiguous().to(torch::kCPU);
+    auto value_tensor = std::get<1>(outputs).to(torch::kCPU);
 
     std::vector<float> child_priors(policy_tensor.data_ptr<float>(),
         policy_tensor.data_ptr<float>() + policy_tensor.numel());
@@ -148,7 +151,7 @@ std::vector<float> softmax(const std::vector<float>& x) {
     std::vector<float> probabilities(x.size());
     float max_val = *std::max_element(x.begin(), x.end());
 
-    float sum_exp = 0.0;
+    float sum_exp = 0.0f;
     for (size_t i = 0; i < x.size(); ++i) {
         probabilities[i] = std::exp(x[i] - max_val);
         sum_exp += probabilities[i];
@@ -166,13 +169,39 @@ std::vector<float> get_policy(UCTNode* root, float temperature) {
     std::vector<float> log_visits(child_number_visits.size());
 
     for (size_t i = 0; i < child_number_visits.size(); ++i) {
-        log_visits[i] = std::log(child_number_visits[i] + 1.0) / temperature;
+        log_visits[i] = std::log(child_number_visits[i] + 1e-6f) / temperature;
     }
 
     return softmax(log_visits);
 }
 
 std::pair<int, std::vector<float>> UCT_search(torch::jit::script::Module model, Game* game, int num_reads, bool selfplay, float temperature)
+{
+    std::vector<float> child_priors;
+    float value_estimate;
+    UCTNode* root = new UCTNode(new Game(*game), -1, new UCTNode(new Game(*game), -1, nullptr, selfplay, false), selfplay, true);
+    for (int i = 0; i < num_reads; ++i)
+    {
+        UCTNode* leaf = root->select_leaf();
+        Game* copied_game = leaf->game;
+        std::pair<std::vector<float>, float> cv = net_func(model, copied_game);
+        child_priors = cv.first;
+        value_estimate = cv.second;
+        if (game->checkWinner() != GAME_CONTINUE)
+        {
+            leaf->backup(value_estimate);
+            continue;
+        }
+        leaf->expand(child_priors);
+        leaf->backup(value_estimate);
+    }
+    std::vector<float> policy = get_policy(root, temperature);
+    int action = argmax(root->child_number_visits);
+    clearTree(root);
+    return std::make_pair(action, policy);
+}
+
+std::pair<int, std::vector<float>> UCT_search(std::shared_ptr<TNET>& model, Game* game, int num_reads, bool selfplay, float temperature)
 {
     std::vector<float> child_priors;
     float value_estimate;
@@ -209,7 +238,7 @@ void MCTS_self_play(std::string model_path, std::string save_path, int cpu, bool
     int temperature = mctscfg.temperature;
 
     auto start_time = std::chrono::high_resolution_clock::now();
-    thread_local Game game(9);
+    thread_local Game game(ACTION_SIZE);
     
     printf("[%s] Process %d started\n", current_time().c_str(), cpu);
     for (int i = 0; i < mctscfg.num_games; i++) {
@@ -333,10 +362,88 @@ void self_play(std::string model_path, int num_games, int depth, int ai_side, in
     }
 }
 
+void self_play_native(std::string model_path, int num_games, int depth, int ai_side, int num_reads) {
+    int white_wins = 0;
+    int black_wins = 0;
+    int ai_player = ai_side;
+    auto model = std::make_shared<TNET>();
+	torch::load(model, model_path);
+	//model->load_weights(model_path);
+	std::cout << "Model loaded successfully!" << std::endl;
+	torch::Device device = torch::cuda::is_available() ? torch::kCUDA : torch::kCPU;
+	model->to(device);
+    model->eval();
+
+    auto start_time = std::chrono::high_resolution_clock::now();
+
+    printf("[%s] Process started. Alphazero side is %d\n", current_time().c_str(), ai_player);
+    for (int i = 0; i < num_games; ++i) {
+        Game game(ACTION_SIZE);
+        while (true) {
+            game.showBoard();
+            int action = 0;
+            int winner = game.checkWinner();
+            std::string winnerName = "not finished";
+            if (winner != GAME_CONTINUE) {
+                if (winner == GAME_WHITE_WIN) {
+                    white_wins++;
+                    winnerName = "white";
+                }
+                else if (winner == GAME_BLACK_WIN) {
+                    black_wins++;
+                    winnerName = "black";
+                }
+                else {
+                    winnerName = "draw";
+                }
+                printf("[%s] Episode %d/%d AI: %d Score: %d-%d Moves: %d, Results: %d-%d Winner: %s\n",
+                    current_time().c_str(), i + 1, num_games, ai_player,
+                    game.player1_score, game.player2_score, game.fullMoves,
+                    white_wins, black_wins, winnerName.c_str());
+                break;
+            }
+            if (game.player == ai_player) {
+				printf("AlphaZero`s turn...\n");
+                std::pair<std::vector<float>, float> result = net_func(model, &game);
+                std::vector<float> policy = result.first;
+                float value = result.second;
+
+                printf("Policy: [");
+                for (size_t i = 0; i < policy.size(); i++) {
+                    printf("%f", policy[i]);
+                    if (i < policy.size() - 1) {
+                        printf(", ");
+                    }
+                }
+                printf("]\n");
+				printf("Value prediction: %f\n", value);
+                action = UCT_search(model, &game, num_reads, false, 1.0f).first;
+				printf("Action: %d\n", action);
+            }
+            else {
+				printf("Minimax`s turn...\n");
+                action = getMove(&game, depth);
+            }
+            auto game_state = game.toTensor();
+            printf("State: [");
+            for (size_t i = 0; i < game_state.size(); i++) {
+                printf("%f", game_state[i]);
+                if (i < game_state.size() - 1) {
+                    printf(", ");
+                }
+            }
+            printf("]\n");
+            if (!game.makeMove(action)) {
+                printf("Impossible move!\n");
+            }
+        }
+    }
+}
+
 void play_against_alphazero(std::string model_path, int ai_side, int num_reads) {
     auto model = load_model(model_path);
     model.eval();
-    Game game(9);
+    Game game(ACTION_SIZE);
     int ai_player = ai_side; // AlphaZero играет за черных (1), игрок - за белых (0)
 
     printf("[%s] Game started! Input the move as in the cell indexes 1-9. Alphazero side is %d\n", current_time().c_str(), ai_player);
