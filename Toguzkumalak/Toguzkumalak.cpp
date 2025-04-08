@@ -122,8 +122,7 @@ int main(int argc, char** argv) {
         start_training(model, dataset_path, cpus, train_config);
 		model->to(torch::kCPU);
         torch::save(model, save_path);
-        torch::Tensor example_input = torch::randn({ 1, ACTION_SIZE * 2 + 3 }, device);
-
+        torch::save(model->named_parameters(), save_path + 'h');
         std::cout << "Model saved to " << save_path << std::endl;
     }
     else {
