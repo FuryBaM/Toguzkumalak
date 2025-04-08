@@ -56,3 +56,4 @@ libtorch/*
 *.pth
 *.tar
 *.bin
+__pycache__/
