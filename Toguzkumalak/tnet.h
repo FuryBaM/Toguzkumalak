@@ -124,7 +124,7 @@ public:
 
     void save_weights(const std::string& path) {
         std::ofstream file(path, std::ios::binary);
-        to(torch::kCPU);
+        to(torch::kCPU);  // Переводим на CPU, если нужно
 
         // Проходим по именам и параметрам
         for (const auto& named_param : named_parameters()) {
@@ -137,10 +137,20 @@ public:
             file.write(name.c_str(), name_length); // Имя параметра
 
             // Сохраняем данные параметра
-            auto data = param.data().contiguous();
-            auto size = data.numel();
-            file.write(reinterpret_cast<char*>(&size), sizeof(size)); // Размер параметра
-            file.write(reinterpret_cast<char*>(data.data_ptr<float>()), size * sizeof(float)); // Данные параметра
+            auto data = param.data().contiguous();  // Преобразуем в одномерный массив
+            auto size = data.numel();  // Общее количество элементов
+
+            // Сохраняем форму тензора (размерности)
+            int64_t num_dimensions = data.dim();
+            file.write(reinterpret_cast<char*>(&num_dimensions), sizeof(num_dimensions));  // Число измерений
+            for (int i = 0; i < num_dimensions; ++i) {
+                int64_t dim_size = data.size(i);
+                file.write(reinterpret_cast<char*>(&dim_size), sizeof(dim_size));  // Размер каждого измерения
+            }
+
+            // Сохраняем данные тензора (в одномерном виде)
+            file.write(reinterpret_cast<char*>(&size), sizeof(size));  // Размер параметра
+            file.write(reinterpret_cast<char*>(data.data_ptr<float>()), size * sizeof(float));  // Данные параметра
         }
 
         file.close();
@@ -149,32 +159,32 @@ public:
     void load_weights(const std::string& path) {
         std::ifstream file(path, std::ios::binary);
 
-        // Проходим по именам и параметрам
         for (auto& named_param : named_parameters()) {
-            auto& param = named_param.value();
-
-            // Читаем длину имени параметра
             int64_t name_length;
             file.read(reinterpret_cast<char*>(&name_length), sizeof(name_length));
 
-            std::string name(name_length, ' ');
-            file.read(&name[0], name_length);  // Чтение имени параметра
+            // Чтение имени параметра
+            std::string name(name_length, '\0');
+            file.read(name.data(), name_length);
 
-            if (name != named_param.key()) {
-                std::cerr << "Warning: Expected parameter name '" << named_param.key()
-                    << "', but found '" << name << "'\n";
-                continue;  // Пропускаем этот параметр, если имя не совпадает
+            // Чтение формы тензора (размерности)
+            int64_t num_dimensions;
+            file.read(reinterpret_cast<char*>(&num_dimensions), sizeof(num_dimensions));
+
+            std::vector<int64_t> shape(num_dimensions);
+            for (int i = 0; i < num_dimensions; ++i) {
+                file.read(reinterpret_cast<char*>(&shape[i]), sizeof(shape[i]));  // Чтение каждого размера
             }
 
-            // Чтение размера и данных параметра
+            // Чтение данных тензора
             int64_t size;
             file.read(reinterpret_cast<char*>(&size), sizeof(size));
-
             std::vector<float> param_data(size);
             file.read(reinterpret_cast<char*>(param_data.data()), size * sizeof(float));
 
-            // Копирование данных в параметр
-            param.data().copy_(torch::tensor(param_data).view_as(param));
+            // Воссоздание тензора с нужной формой
+            auto tensor = torch::tensor(param_data).view(shape);  // Восстанавливаем форму
+            named_param.value().data().copy_(tensor);  // Копируем данные в параметр
         }
 
         file.close();

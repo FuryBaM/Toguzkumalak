@@ -367,8 +367,8 @@ void self_play_native(std::string model_path, int num_games, int depth, int ai_s
     int black_wins = 0;
     int ai_player = ai_side;
     auto model = std::make_shared<TNET>();
-	torch::load(model, model_path);
-	//model->load_weights(model_path);
+	//torch::load(model, model_path);
+	model->load_weights(model_path);
 	std::cout << "Model loaded successfully!" << std::endl;
 	torch::Device device = torch::cuda::is_available() ? torch::kCUDA : torch::kCPU;
 	model->to(device);
