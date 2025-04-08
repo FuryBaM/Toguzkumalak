@@ -121,4 +121,43 @@ public:
         }
         return outblock->forward(x);
     }
+
+	void save_weights(const std::string& path) {
+        std::ofstream file(path, std::ios::binary);
+		to(torch::kCPU);
+		for (const auto& param : parameters()) {
+			auto data = param.data().contiguous(); // Tensor
+			auto size = data.numel(); // int64_t
+            file.write(reinterpret_cast<const char*>(&size), sizeof(size));
+            file.write(reinterpret_cast<const char*>(data.data_ptr<float>()), size * sizeof(float));
+		}
+        file.close();
+	}
+
+    void load_weights(const std::string& path) {
+        std::ifstream file(path, std::ios::binary);
+        if (!file) {
+            throw std::runtime_error("Failed to open file for reading: " + path);
+        }
+
+        for (auto& param : parameters()) {
+            int64_t size;
+            if (!file.read(reinterpret_cast<char*>(&size), sizeof(size))) {
+                throw std::runtime_error("Failed to read size of parameter.");
+            }
+
+            if (size == 0) {
+                throw std::runtime_error("Invalid parameter size read from file.");
+            }
+
+            std::vector<float> param_data(size);
+            if (!file.read(reinterpret_cast<char*>(param_data.data()), size * sizeof(float))) {
+                throw std::runtime_error("Failed to read parameter data.");
+            }
+
+            param.data().copy_(torch::tensor(param_data).view_as(param));
+        }
+
+        file.close();
+    }
 };

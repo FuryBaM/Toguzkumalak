@@ -110,7 +110,8 @@ int main(int argc, char** argv) {
         std::cout << "Number of CPUs: " << cpus << std::endl;
 
         std::shared_ptr<TNET> model = std::make_shared<TNET>();
-        torch::load(model, model_path);
+        //torch::load(model, model_path);
+		model->load_weights(model_path);
         std::printf("Model loaded from %s\n", model_path.c_str());
 
         torch::Device device = torch::cuda::is_available() ? torch::kCUDA : torch::kCPU;
@@ -122,8 +123,12 @@ int main(int argc, char** argv) {
         start_training(model, dataset_path, cpus, train_config);
 		model->to(torch::kCPU);
         torch::save(model, save_path);
-        torch::save(model->named_parameters(), save_path + 'h');
         std::cout << "Model saved to " << save_path << std::endl;
+        std::filesystem::path path(save_path);
+        std::filesystem::path directory = path.parent_path();
+        std::filesystem::path new_save_path = directory / "weights.dat";
+		model->save_weights(new_save_path.string());
+		std::cout << "Model weights saved to " << new_save_path.string() << std::endl;
     }
     else {
         std::cerr << "Invalid mode: " << mode << std::endl;

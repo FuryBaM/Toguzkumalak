@@ -125,6 +125,25 @@ std::pair<std::vector<float>, float> net_func(torch::jit::script::Module model, 
     return { child_priors, value };
 }
 
+std::pair<std::vector<float>, float> net_func(std::shared_ptr<TNET> model, Game* game) {
+    std::vector<float> game_state = game->toTensor();
+    torch::Tensor input_tensor = torch::from_blob(game_state.data(), { 1, (2 * game->action_size) + 3 }).to(torch::kFloat);
+
+    model->eval();
+
+    auto outputs = model->forward(input_tensor);
+
+    auto policy_tensor = std::get<0>(outputs).contiguous();
+    auto value_tensor = std::get<1>(outputs);
+
+    std::vector<float> child_priors(policy_tensor.data_ptr<float>(),
+        policy_tensor.data_ptr<float>() + policy_tensor.numel());
+
+    float value = value_tensor.item<float>();
+
+    return { child_priors, value };
+}
+
 std::vector<float> softmax(const std::vector<float>& x) {
     std::vector<float> probabilities(x.size());
     float max_val = *std::max_element(x.begin(), x.end());

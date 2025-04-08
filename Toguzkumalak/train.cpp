@@ -13,7 +13,14 @@ void train(const std::shared_ptr<TNET>& model, const GameState& dataset, int thr
 
     torch::Device device = torch::cuda::is_available() ? torch::kCUDA : torch::kCPU;
     auto train_set = BoardDataset(dataset, device);
-    auto data_loader = torch::data::make_data_loader(train_set.map(torch::data::transforms::Stack<>()), batch_size);
+    int num_workers = std::thread::hardware_concurrency();
+
+    auto data_loader = torch::data::make_data_loader(
+        train_set.map(torch::data::transforms::Stack<>()),
+        torch::data::DataLoaderOptions()
+        .batch_size(batch_size)
+        .workers(num_workers)
+    );
 
     AlphaLoss criterion;
     std::vector<float> losses_per_epoch;
@@ -84,12 +91,10 @@ void start_training(const std::shared_ptr<TNET>& model, const std::string& datas
         printf("Dataset loaded: %zu states, %zu policies, %zu values\n", dataset.states.size(), dataset.policies.size(), dataset.values.size());
         std::vector<std::thread> threads;
         if (num_threads > 1) {
-            for (int i = 0; i < num_threads; ++i) {
-                threads.emplace_back(train, model, dataset, i, cfg);
-            }
-            for (auto& t : threads) {
-                t.join();
-            }
+#pragma omp parallel for
+			for (int i = 0; i < num_threads; ++i) {
+                train(model, dataset, i, cfg);
+			}
         }
         else {
 			train(model, dataset, 0, cfg);

@@ -100,6 +100,7 @@ std::string current_date();
 
 torch::jit::script::Module load_model(const std::string& model_path);
 std::pair<std::vector<float>, float> net_func(torch::jit::script::Module model, Game* game);
+std::pair<std::vector<float>, float> net_func(std::shared_ptr<TNET> model, Game* game);
 std::vector<float> softmax(const std::vector<float>& x);
 std::vector<float> get_policy(UCTNode* root, float temperature = 1.0f);
 std::pair<int, std::vector<float>> UCT_search(torch::jit::script::Module model, Game* game, int num_reads, bool selfplay, float temperature);
