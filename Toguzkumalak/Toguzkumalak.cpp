@@ -32,16 +32,22 @@ int main(int argc, char** argv) {
     if (mode == "selfplay") {
         int num_games = config.get<int>("games", 10, 0);
         bool use_omp = config.get<bool>("openmp", false, 0);
-        std::string save_path = config.get<std::string>("save", "./datasets/all/", 0);
         int num_reads = config.get<int>("num_reads", 800, 0);
         float temperature = config.get<float>("temperature", 1.0f, 0);
+        int temperature_cutoff = config.get<int>("temperature_cutoff", 30, 0);
 
-        MCTSSelfPlayConfig cfg(num_games, num_reads, temperature);
+        std::string save_path = std::filesystem::absolute(
+            config.get<std::string>("save", "./datasets/all/", 0)
+        ).string();
+
+        MCTSSelfPlayConfig cfg(num_games, num_reads, temperature, temperature_cutoff);
 
         std::cout << "Dataset save path: " << save_path << std::endl;
         std::cout << "Use OpenMP: " << (use_omp ? "true" : "false") << std::endl;
         std::cout << "Number of CPUs: " << cpus << std::endl;
         std::cout << "Number of games: " << num_games << std::endl;
+        std::cout << "Temperature: " << temperature << std::endl;
+        std::cout << "Temperature cutoff: " << temperature_cutoff << std::endl;
 
         if (cpus > 1) {
             if (use_omp) {
@@ -129,6 +135,10 @@ int main(int argc, char** argv) {
         std::cout << "Model save path: " << save_path << std::endl;
         std::cout << "Weights save path: " << weights_path << std::endl;
         std::cout << "Epochs: " << epochs << std::endl;
+        std::cout << "Batch size: " << batch_size << std::endl;
+        std::cout << "Learning rate: " << lr << std::endl;
+        std::cout << "Learning rate step: " << lr_step << std::endl;
+        std::cout << "Learning rate step gamma: " << gamma << std::endl;
         std::cout << "Number of CPUs: " << cpus << std::endl;
 
         std::shared_ptr<TNET> model = std::make_shared<TNET>();

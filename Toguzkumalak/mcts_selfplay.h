@@ -15,13 +15,14 @@ struct MCTSSelfPlayConfig {
     int num_games = 10;
     int num_reads = 800;
     float temperature = 1.0f;
+    int temperature_cutoff = 30;
 
     MCTSSelfPlayConfig() = default;
 
     MCTSSelfPlayConfig(int num_games,
         int num_reads,
-        float temperature) :
-        num_games(num_games), num_reads(num_reads), temperature(temperature) {
+        float temperature, int temperature_cutoff) :
+        num_games(num_games), num_reads(num_reads), temperature(temperature), temperature_cutoff(temperature_cutoff) {
     }
 };
 

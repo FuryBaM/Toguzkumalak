@@ -235,7 +235,8 @@ void MCTS_self_play(std::string model_path, std::string save_path, int cpu, bool
     thread_local auto model = load_model(model_path);
     model.eval();
     int num_reads = mctscfg.num_reads;
-    int temperature = mctscfg.temperature;
+    float temperature = mctscfg.temperature;
+	int temperature_cutoff = mctscfg.temperature_cutoff;
 
     auto start_time = std::chrono::high_resolution_clock::now();
     thread_local Game game(ACTION_SIZE);
@@ -269,7 +270,7 @@ void MCTS_self_play(std::string model_path, std::string save_path, int cpu, bool
                     game.player1_score, game.player2_score, game.fullMoves, winner_name.c_str());
                 break;
             }
-            auto result = UCT_search(model, &game, num_reads, true, temperature);
+            auto result = UCT_search(model, &game, num_reads, true, game.fullMoves > temperature_cutoff ? 0.0f : temperature);
             int root_action = result.first;
             std::vector<float> policy = result.second;
             auto state = game.toTensor();
