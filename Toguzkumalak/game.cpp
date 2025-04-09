@@ -445,6 +445,7 @@ float minimax(Game* game, int player, int depth, float alpha, float beta)
 
 int getMove(Game* game, int depth)
 {
+	depth *= 2;
     int bestmove = -1;
     float besteval = -std::numeric_limits<float>::infinity();
     int player = game->player;

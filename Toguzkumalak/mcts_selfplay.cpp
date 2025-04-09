@@ -169,7 +169,7 @@ std::vector<float> get_policy(UCTNode* root, float temperature) {
     std::vector<float> log_visits(child_number_visits.size());
 
     for (size_t i = 0; i < child_number_visits.size(); ++i) {
-        log_visits[i] = std::log(child_number_visits[i] + 1e-6f) / temperature;
+        log_visits[i] = std::log(child_number_visits[i] + 1.0f) / temperature;
     }
 
     return softmax(log_visits);
@@ -265,12 +265,12 @@ void MCTS_self_play(std::string model_path, std::string save_path, int cpu, bool
                 auto end_time = std::chrono::high_resolution_clock::now();
                 auto elapsed = elapsed_time(static_cast<long long>(
                     std::chrono::duration_cast<std::chrono::seconds>(end_time - start_time).count()));
-                printf("[%s][%s][%d]-Episode %d/%d Score: %d-%d Turns: %d Winner: %s\n",
+                printf("[%s][%s][%d]-Episode %d/%d Score: %d-%d Moves: %d Winner: %s\n",
                     curr_time.c_str(), elapsed.c_str(), cpu, i + 1, mctscfg.num_games,
                     game.player1_score, game.player2_score, game.fullMoves, winner_name.c_str());
                 break;
             }
-            auto result = UCT_search(model, &game, num_reads, true, game.fullMoves > temperature_cutoff ? 0.0f : temperature);
+            auto result = UCT_search(model, &game, num_reads, true, game.fullMoves > temperature_cutoff ? 1e-6f : temperature);
             int root_action = result.first;
             std::vector<float> policy = result.second;
             auto state = game.toTensor();
