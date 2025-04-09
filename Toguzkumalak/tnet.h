@@ -129,12 +129,12 @@ public:
         for (const auto& pair : named_parameters()) {
             const std::string& name = pair.key();
             const torch::Tensor& param = pair.value();
-            torch::Tensor tensor = param.cpu().contiguous();
+            torch::Tensor tensor = param.detach().cpu().contiguous();
 
             int64_t name_len = name.size();
             file.write(reinterpret_cast<const char*>(&name_len), sizeof(name_len));
             file.write(name.data(), name_len);
-
+            c10::ScalarType type = tensor.scalar_type();
             auto shape = tensor.sizes();
             int64_t ndims = shape.size();
             file.write(reinterpret_cast<const char*>(&ndims), sizeof(ndims));
@@ -149,7 +149,7 @@ public:
         for (const auto& pair : named_buffers()) {
             const std::string& name = pair.key();
             const torch::Tensor& param = pair.value();
-            torch::Tensor tensor = param.cpu().contiguous();
+            torch::Tensor tensor = param.detach().cpu().contiguous();
 
             int64_t name_len = name.size();
             file.write(reinterpret_cast<const char*>(&name_len), sizeof(name_len));

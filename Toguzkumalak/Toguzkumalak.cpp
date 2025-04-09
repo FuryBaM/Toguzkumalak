@@ -111,7 +111,13 @@ int main(int argc, char** argv) {
         double gamma = config.get<double>("gamma", 100, 0);
         int batch_size = config.get<int>("batch_size", 32, 0);
 		bool load_model = config.get<bool>("load_model", false, 0);
+		bool load_weights = config.get<bool>("load_weights", false, 0);
+
 		TrainConfig train_config(epochs, lr, lr_step, gamma, batch_size);
+
+        std::string weights_path = std::filesystem::absolute(
+            config.get<std::string>("save_weights", "./model_data/weights.dat", 0)
+        ).string();
         std::string dataset_path = std::filesystem::absolute(
             config.get<std::string>("dataset", "./datasets/combined/combined_dataset.bin", 0)
         ).string();
@@ -121,6 +127,7 @@ int main(int argc, char** argv) {
 
         std::cout << "Dataset path: " << dataset_path << std::endl;
         std::cout << "Model save path: " << save_path << std::endl;
+        std::cout << "Weights save path: " << weights_path << std::endl;
         std::cout << "Epochs: " << epochs << std::endl;
         std::cout << "Number of CPUs: " << cpus << std::endl;
 
@@ -134,7 +141,17 @@ int main(int argc, char** argv) {
 				std::cerr << "Error loading model: " << e.what() << std::endl;
 				return 1;
 			}
-		}
+        }
+        else if (load_weights) {
+            std::cout << "Loading model from: " << model_path << std::endl;
+            try {
+                model->load_weights(model_path);
+            }
+            catch (const std::exception& e) {
+                std::cerr << "Error loading model: " << e.what() << std::endl;
+                return 1;
+            }
+        }
         std::printf("Model loaded from %s\n", model_path.c_str());
 
         torch::Device device = torch::cuda::is_available() ? torch::kCUDA : torch::kCPU;
@@ -148,11 +165,8 @@ int main(int argc, char** argv) {
 		model->eval();
         torch::save(model, save_path);
         std::cout << "Model saved to " << save_path << std::endl;
-        std::filesystem::path path(save_path);
-        std::filesystem::path directory = path.parent_path();
-        std::filesystem::path new_save_path = directory / "weights.dat";
-		model->save_weights(new_save_path.string());
-		std::cout << "Model weights saved to " << new_save_path.string() << std::endl;
+		model->save_weights(weights_path);
+		std::cout << "Model weights saved to " << weights_path << std::endl;
     }
     else {
         std::cerr << "Invalid mode: " << mode << std::endl;

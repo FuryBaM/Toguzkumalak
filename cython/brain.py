@@ -8,6 +8,8 @@ import torch.nn.functional as F
 import torch.optim as optim
 
 import struct
+
+import torch.utils.cpp_extension
 print(torch.__version__)
 torch.autograd.set_detect_anomaly(False)
 
@@ -142,53 +144,37 @@ class TNET(nn.Module):
 
     def save_weights(self, path):
         with open(path, 'wb') as file:
-            # Сохраняем параметры
             for name, param in self.named_parameters():
-                tensor = param.cpu().contiguous()
+                tensor = param.detach().cpu().contiguous()
 
-                # Сохраняем имя
                 name_len = len(name)
                 file.write(name_len.to_bytes(8, byteorder='little'))
                 file.write(name.encode('utf-8'))
 
-                # Сохраняем тип данных
-                dtype = tensor.dtype
-                file.write(dtype.item().to_bytes(4, byteorder='little'))
-
-                # Сохраняем форму
                 shape = tensor.size()
                 ndims = len(shape)
                 file.write(ndims.to_bytes(8, byteorder='little'))
                 for dim in shape:
                     file.write(dim.to_bytes(8, byteorder='little'))
 
-                # Сохраняем данные
                 num_elems = tensor.numel()
-                file.write(tensor.flatten().numpy().tobytes())
+                file.write(tensor.numpy().tobytes())
 
-            # Сохраняем буферы
             for name, buffer in self.named_buffers():
-                tensor = buffer.cpu().contiguous()
+                tensor = buffer.detach().cpu().contiguous()
 
-                # Сохраняем имя
                 name_len = len(name)
                 file.write(name_len.to_bytes(8, byteorder='little'))
                 file.write(name.encode('utf-8'))
 
-                # Сохраняем тип данных
-                dtype = tensor.dtype
-                file.write(dtype.item().to_bytes(4, byteorder='little'))
-
-                # Сохраняем форму
                 shape = tensor.size()
                 ndims = len(shape)
                 file.write(ndims.to_bytes(8, byteorder='little'))
                 for dim in shape:
                     file.write(dim.to_bytes(8, byteorder='little'))
 
-                # Сохраняем данные
                 num_elems = tensor.numel()
-                file.write(tensor.flatten().numpy().tobytes())
+                file.write(tensor.numpy().tobytes())
 
     def load_weights(self, path):
         if not os.path.exists(path):
@@ -254,7 +240,7 @@ class AlphaLoss(torch.nn.Module):
         return (value_error.view(-1) + policy_error).mean()
     
 def simulate_train(model):
-    input_data = torch.randn(32, 2*ACTION_SIZE+3)
+    input_data = torch.randn(32, 2 * ACTION_SIZE + 3)
     policy = torch.randn(32, 9)
     value = torch.randn(32, 1)
     # Определяем критерий и оптимизатор
@@ -274,15 +260,21 @@ def simulate_train(model):
     print("Training completed.")
     
 if __name__ == "__main__":
-    input_data = torch.tensor([9.000000, 9.000000, 9.000000, 9.000000, 9.000000, 9.000000, 9.000000, 9.000000, 
-                            9.000000, 9.000000, 9.000000, 9.000000, 9.000000, 9.000000, 9.000000, 9.000000, 
-                            9.000000, 9.000000, 0.000000, 0.000000, 0.000000], dtype=torch.float32).view(1, -1)
-    # Загрузка весов в новую модель
-    model_loaded = TNET()
-    model_loaded.eval()  # Переводим в eval перед использованием
-    model_loaded.load_weights(r"C:\Users\Akzhol\source\repos\Toguzkumalak\Toguzkumalak\build\Release\model_data\weights.dat")
+    # input_data = torch.tensor([9.000000, 9.000000, 9.000000, 9.000000, 9.000000, 9.000000, 9.000000, 9.000000, 
+    #                         9.000000, 9.000000, 9.000000, 9.000000, 9.000000, 9.000000, 9.000000, 9.000000, 
+    #                         9.000000, 9.000000, 0.000000, 0.000000, 0.000000], dtype=torch.float32).view(1, -1)
+    # # Загрузка весов в новую модель
+    # model_loaded = TNET()
+    # model_loaded.eval()  # Переводим в eval перед использованием
+    # model_loaded.load_weights(r"C:\Users\Akzhol\source\repos\Toguzkumalak\Toguzkumalak\build\Release\model_data\weights.dat")
+    # # model_loaded.save_weights(r"C:\Users\Akzhol\source\repos\Toguzkumalak\Toguzkumalak\build\Release\model_data\py_weights.dat")
+    # model_traced = torch.jit.trace(model_loaded, input_data)
+    # model_freezed = torch.jit.freeze(model_traced)
+    # model_optimized = torch.jit.optimize_for_inference(model_freezed)
+    # torch.jit.save(model_optimized, r"C:\Users\Akzhol\source\repos\Toguzkumalak\Toguzkumalak\build\Release\model_data\best_optimized.pt")
+    # # После загрузки весов
+    # output_loaded = model_loaded(input_data)
+    # print("After loading weights:")
+    # print(output_loaded)
 
-    # После загрузки весов
-    output_loaded = model_loaded(input_data)
-    print("After loading weights:")
-    print(output_loaded)
+    torch.int16
