@@ -78,6 +78,7 @@ int main(int argc, char** argv) {
         int ai_side = config.get<int>("ai_side", 0, 0);
         int num_reads = config.get<int>("num_reads", 800, 0);
 		bool is_native = config.get<bool>("is_native", 0, 0);
+		bool load_weights = config.get<bool>("load_weights", false, 0);
 
         std::cout << "Number of games: " << num_games << std::endl;
         std::cout << "Depth: " << depth << std::endl;
@@ -85,7 +86,7 @@ int main(int argc, char** argv) {
 		if (is_native) {
 			std::cout << "Using native MCTS" << std::endl;
             try {
-                self_play_native(model_path, num_games, depth, ai_side, num_reads);
+                self_play_native(model_path, num_games, depth, ai_side, num_reads, load_weights);
             }
 			catch (const std::exception& e) {
 				std::cerr << "Error: " << e.what() << std::endl;
@@ -134,7 +135,6 @@ int main(int argc, char** argv) {
 				return 1;
 			}
 		}
-		//model->load_weights(model_path);
         std::printf("Model loaded from %s\n", model_path.c_str());
 
         torch::Device device = torch::cuda::is_available() ? torch::kCUDA : torch::kCPU;
@@ -145,6 +145,7 @@ int main(int argc, char** argv) {
         if (epochs > 0)
             start_training(model, dataset_path, cpus, train_config);
 		model->to(torch::kCPU);
+		model->eval();
         torch::save(model, save_path);
         std::cout << "Model saved to " << save_path << std::endl;
         std::filesystem::path path(save_path);

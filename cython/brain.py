@@ -139,50 +139,99 @@ class TNET(nn.Module):
             print("Loaded model weights from state_dict.")
         else:
             raise ValueError("Unknown model file extension. Expected .pt or .pth")
-    
-    # void save_weights(const std::string& path) {
-    #     std::ofstream file(path, std::ios::binary);
-    #     to(torch::kCPU);
-    #     for (const auto& param : parameters()) {
-    #         auto data = param.data().contiguous();
-    #         unsigned long long size = data.numel();
-    #         file.write(reinterpret_cast<const char*>(&size), sizeof(size));
-    #         file.write(reinterpret_cast<const char*>(data.data_ptr<float>()), size * sizeof(float));
-    #     }
-    #     file.close();
-    # }
-    
-    def save_binary_weights(self, path):
-        self.to(torch.device('cpu'))
-        with open(path, "wb") as file:
-            for name, param in self.named_parameters():  # Используем named_parameters
-                data = param.data.contiguous().cpu().view(-1).numpy().astype(np.float32)
-                size = len(data)
-                # Записываем имя параметра (для проверки, что загружаем тот же параметр)
-                name_len = len(name)
-                file.write(struct.pack('<q', name_len))  # Длина имени параметра
-                file.write(name.encode('utf-8'))  # Сохраняем имя параметра в байтовом виде
-                # Записываем размер и данные параметра
-                file.write(struct.pack('<q', size))  # Длина данных параметра
-                file.write(data.tobytes())  # Запись данных параметра
 
-    def load_binary_weights(self, path: str):
-        self.to(torch.device('cpu'))
-        with open(path, "rb") as file:
+    def save_weights(self, path):
+        with open(path, 'wb') as file:
+            # Сохраняем параметры
             for name, param in self.named_parameters():
-                # Чтение имени параметра
-                name_len = struct.unpack('<q', file.read(8))[0]
-                name_read = file.read(name_len).decode('utf-8')
-                
-                if name_read != name:
-                    print(f"Warning: Mismatch in parameter name. Expected '{name}', but found '{name_read}'")
-                    continue  # Если имя параметра не совпадает, пропускаем его
+                tensor = param.cpu().contiguous()
 
-                # Чтение размера и данных параметра
-                size = struct.unpack('<q', file.read(8))[0]
-                param_data = np.frombuffer(file.read(size * 4), dtype=np.float32)
-                param.data.copy_(torch.tensor(param_data).view_as(param))
-    
+                # Сохраняем имя
+                name_len = len(name)
+                file.write(name_len.to_bytes(8, byteorder='little'))
+                file.write(name.encode('utf-8'))
+
+                # Сохраняем тип данных
+                dtype = tensor.dtype
+                file.write(dtype.item().to_bytes(4, byteorder='little'))
+
+                # Сохраняем форму
+                shape = tensor.size()
+                ndims = len(shape)
+                file.write(ndims.to_bytes(8, byteorder='little'))
+                for dim in shape:
+                    file.write(dim.to_bytes(8, byteorder='little'))
+
+                # Сохраняем данные
+                num_elems = tensor.numel()
+                file.write(tensor.flatten().numpy().tobytes())
+
+            # Сохраняем буферы
+            for name, buffer in self.named_buffers():
+                tensor = buffer.cpu().contiguous()
+
+                # Сохраняем имя
+                name_len = len(name)
+                file.write(name_len.to_bytes(8, byteorder='little'))
+                file.write(name.encode('utf-8'))
+
+                # Сохраняем тип данных
+                dtype = tensor.dtype
+                file.write(dtype.item().to_bytes(4, byteorder='little'))
+
+                # Сохраняем форму
+                shape = tensor.size()
+                ndims = len(shape)
+                file.write(ndims.to_bytes(8, byteorder='little'))
+                for dim in shape:
+                    file.write(dim.to_bytes(8, byteorder='little'))
+
+                # Сохраняем данные
+                num_elems = tensor.numel()
+                file.write(tensor.flatten().numpy().tobytes())
+
+    def load_weights(self, path):
+        if not os.path.exists(path):
+            raise RuntimeError("Failed to open file for reading")
+
+        with open(path, 'rb') as file:
+            params_map = {name: param for name, param in self.named_parameters()}
+            buffers_map = {name: buffer for name, buffer in self.named_buffers()}
+
+            while True:
+                name_len = int.from_bytes(file.read(8), byteorder='little')
+                if not name_len:
+                    break
+
+                name = file.read(name_len).decode('utf-8')
+
+                target_tensor = params_map.get(name)
+                if target_tensor is None:
+                    target_tensor = buffers_map.get(name)
+                
+                if target_tensor is None:
+                    raise RuntimeError(f"Parameter or buffer '{name}' not found in model")
+
+                ndims = int.from_bytes(file.read(8), byteorder='little')
+                shape = [int.from_bytes(file.read(8), byteorder='little') for _ in range(ndims)]
+
+                if len(shape) == 0:
+                    shape = []
+
+                expected_shape = target_tensor.shape
+                
+                if tuple(shape) != tuple(expected_shape):
+                    raise RuntimeError(f"Shape mismatch for {name}, expected {expected_shape}, got {shape}")
+
+                num_elems = 1
+                for dim in shape:
+                    num_elems *= dim
+                data = file.read(num_elems * target_tensor.element_size())
+                tensor_data = torch.frombuffer(data, dtype=target_tensor.dtype).reshape(shape)
+
+                with torch.no_grad():
+                    target_tensor.copy_(tensor_data)   
+                    
     def act(self, state, game):
         act_values, policy = None, None
         if cuda:
@@ -225,46 +274,15 @@ def simulate_train(model):
     print("Training completed.")
     
 if __name__ == "__main__":
-    model = TNET()
-    model.eval()
-    
-    # Генерация входных данных
-    input_data = torch.tensor([9.000000, 9.000000, 9.000000, 9.000000, 9.000000, 9.000000, 9.000000, 9.000000, 
-                            9.000000, 9.000000, 9.000000, 9.000000, 9.000000, 9.000000, 9.000000, 9.000000, 
-                            9.000000, 9.000000, 0.000000, 0.000000, 0.000000], dtype=torch.float32).view(1, -1)
-    
-    # Перед тренировкой
-    output = model(input_data)
-    print("Before training:")
-    print(output)
-
-    # Обучение модели
-    simulate_train(model)
-    input_data = torch.tensor([9.000000, 9.000000, 9.000000, 9.000000, 9.000000, 9.000000, 9.000000, 9.000000, 
-                            9.000000, 9.000000, 9.000000, 9.000000, 9.000000, 9.000000, 9.000000, 9.000000, 
-                            9.000000, 9.000000, 0.000000, 0.000000, 0.000000], dtype=torch.float32).view(1, -1)
-    # После тренировки
-    input_data_batch = input_data.repeat(2, 1)
-    output = model(input_data_batch)
-    print("Before save:")
-    print(output)
-    model.eval()
-    # Сохранение весов
-    #model.save_binary_weights(r"C:\Users\Akzhol\source\repos\Toguzkumalak\Toguzkumalak\build\Release\model_data\py_weights.dat")
     input_data = torch.tensor([9.000000, 9.000000, 9.000000, 9.000000, 9.000000, 9.000000, 9.000000, 9.000000, 
                             9.000000, 9.000000, 9.000000, 9.000000, 9.000000, 9.000000, 9.000000, 9.000000, 
                             9.000000, 9.000000, 0.000000, 0.000000, 0.000000], dtype=torch.float32).view(1, -1)
     # Загрузка весов в новую модель
     model_loaded = TNET()
-    model_loaded.load_binary_weights(r"C:\Users\Akzhol\source\repos\Toguzkumalak\Toguzkumalak\build\Release\model_data\weights.dat")
     model_loaded.eval()  # Переводим в eval перед использованием
+    model_loaded.load_weights(r"C:\Users\Akzhol\source\repos\Toguzkumalak\Toguzkumalak\build\Release\model_data\weights.dat")
 
     # После загрузки весов
     output_loaded = model_loaded(input_data)
     print("After loading weights:")
     print(output_loaded)
-
-    # Печать параметров модели (если нужно для диагностики)
-    # print("Model parameters after loading weights:")
-    # for name, param in model_loaded.named_parameters():
-    #     print(f"{name}: {param}")

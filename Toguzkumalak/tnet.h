@@ -124,69 +124,100 @@ public:
 
     void save_weights(const std::string& path) {
         std::ofstream file(path, std::ios::binary);
-        to(torch::kCPU);  // Переводим на CPU, если нужно
+        if (!file) throw std::runtime_error("Failed to open file for writing");
 
-        // Проходим по именам и параметрам
-        for (const auto& named_param : named_parameters()) {
-            const auto& name = named_param.key();
-            const auto& param = named_param.value();
+        for (const auto& pair : named_parameters()) {
+            const std::string& name = pair.key();
+            const torch::Tensor& param = pair.value();
+            torch::Tensor tensor = param.cpu().contiguous();
 
-            // Сохраняем длину имени параметра
-            int64_t name_length = name.size();
-            file.write(reinterpret_cast<char*>(&name_length), sizeof(name_length)); // Длина имени
-            file.write(name.c_str(), name_length); // Имя параметра
+            int64_t name_len = name.size();
+            file.write(reinterpret_cast<const char*>(&name_len), sizeof(name_len));
+            file.write(name.data(), name_len);
 
-            // Сохраняем данные параметра
-            auto data = param.data().contiguous();  // Преобразуем в одномерный массив
-            auto size = data.numel();  // Общее количество элементов
-
-            // Сохраняем форму тензора (размерности)
-            int64_t num_dimensions = data.dim();
-            file.write(reinterpret_cast<char*>(&num_dimensions), sizeof(num_dimensions));  // Число измерений
-            for (int i = 0; i < num_dimensions; ++i) {
-                int64_t dim_size = data.size(i);
-                file.write(reinterpret_cast<char*>(&dim_size), sizeof(dim_size));  // Размер каждого измерения
+            auto shape = tensor.sizes();
+            int64_t ndims = shape.size();
+            file.write(reinterpret_cast<const char*>(&ndims), sizeof(ndims));
+            for (auto dim : shape) {
+                file.write(reinterpret_cast<const char*>(&dim), sizeof(dim));
             }
 
-            // Сохраняем данные тензора (в одномерном виде)
-            file.write(reinterpret_cast<char*>(&size), sizeof(size));  // Размер параметра
-            file.write(reinterpret_cast<char*>(data.data_ptr<float>()), size * sizeof(float));  // Данные параметра
+            int64_t num_elems = tensor.numel();
+            file.write(reinterpret_cast<const char*>(tensor.data_ptr()), num_elems * tensor.element_size());
         }
 
-        file.close();
-    }
+        for (const auto& pair : named_buffers()) {
+            const std::string& name = pair.key();
+            const torch::Tensor& param = pair.value();
+            torch::Tensor tensor = param.cpu().contiguous();
 
+            int64_t name_len = name.size();
+            file.write(reinterpret_cast<const char*>(&name_len), sizeof(name_len));
+            file.write(name.data(), name_len);
+
+            auto shape = tensor.sizes();
+            int64_t ndims = shape.size();
+            file.write(reinterpret_cast<const char*>(&ndims), sizeof(ndims));
+            for (auto dim : shape) {
+                file.write(reinterpret_cast<const char*>(&dim), sizeof(dim));
+            }
+
+            int64_t num_elems = tensor.numel();
+            file.write(reinterpret_cast<const char*>(tensor.data_ptr()), num_elems * tensor.element_size());
+        }
+    }
     void load_weights(const std::string& path) {
         std::ifstream file(path, std::ios::binary);
+        if (!file) throw std::runtime_error("Failed to open file for reading");
 
-        for (auto& named_param : named_parameters()) {
-            int64_t name_length;
-            file.read(reinterpret_cast<char*>(&name_length), sizeof(name_length));
-
-            // Чтение имени параметра
-            std::string name(name_length, '\0');
-            file.read(name.data(), name_length);
-
-            // Чтение формы тензора (размерности)
-            int64_t num_dimensions;
-            file.read(reinterpret_cast<char*>(&num_dimensions), sizeof(num_dimensions));
-
-            std::vector<int64_t> shape(num_dimensions);
-            for (int i = 0; i < num_dimensions; ++i) {
-                file.read(reinterpret_cast<char*>(&shape[i]), sizeof(shape[i]));  // Чтение каждого размера
-            }
-
-            // Чтение данных тензора
-            int64_t size;
-            file.read(reinterpret_cast<char*>(&size), sizeof(size));
-            std::vector<float> param_data(size);
-            file.read(reinterpret_cast<char*>(param_data.data()), size * sizeof(float));
-
-            // Воссоздание тензора с нужной формой
-            auto tensor = torch::tensor(param_data).view(shape);  // Восстанавливаем форму
-            named_param.value().data().copy_(tensor);  // Копируем данные в параметр
+        std::unordered_map<std::string, torch::Tensor> params_map;
+        for (auto& pair : named_parameters()) {
+            params_map[pair.key()] = pair.value();
         }
 
-        file.close();
+        std::unordered_map<std::string, torch::Tensor> buffers_map;
+        for (auto& pair : named_buffers()) {
+            buffers_map[pair.key()] = pair.value();
+        }
+
+        while (file.peek() != EOF) {
+            int64_t name_len;
+            file.read(reinterpret_cast<char*>(&name_len), sizeof(name_len));
+            std::string name(name_len, '\0');
+            file.read(name.data(), name_len);
+
+            torch::Tensor* target_tensor = nullptr;
+            auto it_param = params_map.find(name);
+            if (it_param != params_map.end()) {
+                target_tensor = &it_param->second;
+            }
+            else {
+                auto it_buf = buffers_map.find(name);
+                if (it_buf != buffers_map.end()) {
+                    target_tensor = &it_buf->second;
+                }
+                else {
+                    throw std::runtime_error("Parameter or buffer " + name + " not found in model");
+                }
+            }
+
+            torch::Tensor& param = *target_tensor;
+
+            int64_t ndims;
+            file.read(reinterpret_cast<char*>(&ndims), sizeof(ndims));
+            std::vector<int64_t> shape(ndims);
+            for (int i = 0; i < ndims; ++i) {
+                file.read(reinterpret_cast<char*>(&shape[i]), sizeof(shape[i]));
+            }
+
+            auto expected_shape = param.sizes();
+            if (shape != expected_shape) {
+                throw std::runtime_error("Shape mismatch for " + name);
+            }
+
+            int64_t num_elems = 1;
+            for (auto dim : shape) num_elems *= dim;
+            file.read(reinterpret_cast<char*>(param.data_ptr()), num_elems * param.element_size());
+        }
     }
 };
