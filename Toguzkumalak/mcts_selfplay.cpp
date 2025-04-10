@@ -187,7 +187,7 @@ std::pair<int, std::vector<float>> UCT_search(torch::jit::script::Module model, 
         std::pair<std::vector<float>, float> cv = net_func(model, copied_game);
         child_priors = cv.first;
         value_estimate = cv.second;
-        if (game->checkWinner() != GAME_CONTINUE)
+        if (copied_game->checkWinner() != GAME_CONTINUE)
         {
             leaf->backup(value_estimate);
             continue;
@@ -213,7 +213,7 @@ std::pair<int, std::vector<float>> UCT_search(std::shared_ptr<TNET>& model, Game
         std::pair<std::vector<float>, float> cv = net_func(model, copied_game);
         child_priors = cv.first;
         value_estimate = cv.second;
-        if (game->checkWinner() != GAME_CONTINUE)
+        if (copied_game->checkWinner() != GAME_CONTINUE)
         {
             leaf->backup(value_estimate);
             continue;
