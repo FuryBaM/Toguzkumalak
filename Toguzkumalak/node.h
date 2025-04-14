@@ -46,7 +46,7 @@ public:
 	{
 		if (move == -1)
 		{
-			rchild_t = move;
+			rchild_t = value;
 			return;
 		}
 		this->parent->child_total_value[this->move] = value;
