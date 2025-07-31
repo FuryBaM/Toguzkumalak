@@ -3,12 +3,14 @@
 #include "game.h"
 
 Game::Game(int a_size)
+    : boardArray(nullptr)
 {
     setActionSize(a_size);
     reset();
 }
 
 Game::Game(const Game& game)
+    : boardArray(nullptr)
 {
     size_t size = game.action_size * 2;
     setActionSize(game.action_size);
@@ -29,12 +31,12 @@ Game::Game(const Game& game)
 Game::~Game()
 {
     delete[] boardArray;
+    boardArray = nullptr;
 }
 
 void Game::setActionSize(int a_size)
 {
     action_size = std::clamp(a_size, 2, 100);
-    action_size = a_size;
     max_stones = a_size * a_size * 2;
     goal = a_size * a_size + 1;
 }
@@ -43,6 +45,9 @@ void Game::setActionSize(int a_size)
 void Game::reset()
 {
     size_t size = action_size * 2;
+    if (boardArray) {
+        delete[] boardArray;
+    }
     boardArray = new int[size];
     std::fill(boardArray, boardArray + size, action_size);
     player = player1_score = player2_score = 0;
@@ -295,7 +300,7 @@ Game::board Game::copyBoard()
 {
     size_t size = action_size * 2;
     int* copy = new int[size];
-    std::memcpy(copy, boardArray, size * sizeof(board));
+    std::memcpy(copy, boardArray, size * sizeof(int));
     return copy;
 }
 
