@@ -89,15 +89,12 @@ void start_training(const std::shared_ptr<TNET>& model, const std::string& datas
         printf("Loading dataset from %s\n", dataset_path.c_str());
         dataset.load(dataset_path);
         printf("Dataset loaded: %zu states, %zu policies, %zu values\n", dataset.states.size(), dataset.policies.size(), dataset.values.size());
-        std::vector<std::thread> threads;
         if (num_threads > 1) {
-#pragma omp parallel for
-			for (int i = 0; i < num_threads; ++i) {
+            for (int i = 0; i < num_threads; ++i) {
                 train(model, dataset, i, cfg);
-			}
-        }
-        else {
-			train(model, dataset, 0, cfg);
+            }
+        } else {
+            train(model, dataset, 0, cfg);
         }
     }
     catch (const c10::Error& e) {

@@ -4,3 +4,4 @@ cmake -G "Unix Makefiles" -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DCMAK
 cmake --build . --config Release
 
 Toguzkumalak.exe --epochs 30 --dataset ./datasets/combined/combined_dataset.bin --mode "train" --cpus 1 --model "./model_data/best.pth.tar"
+
