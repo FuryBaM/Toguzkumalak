@@ -3,6 +3,30 @@
 #include "train.h"
 #include "tnet.h"
 
+// \brief Объединяет все датасеты из каталога в единый файл
+static void combine_datasets(const std::string& input_dir,
+                             const std::string& output_file) {
+    GameState combined;
+    namespace fs = std::filesystem;
+    for (const auto& entry : fs::directory_iterator(input_dir)) {
+        if (entry.path().extension() == ".bin") {
+            try {
+                GameState tmp;
+                tmp.load(entry.path().string());
+                combined.states.insert(combined.states.end(), tmp.states.begin(), tmp.states.end());
+                combined.policies.insert(combined.policies.end(), tmp.policies.begin(), tmp.policies.end());
+                combined.values.insert(combined.values.end(), tmp.values.begin(), tmp.values.end());
+            }
+            catch (const std::exception& e) {
+                std::cerr << "Failed to load dataset " << entry.path() << ": " << e.what() << std::endl;
+            }
+        }
+    }
+    if (!combined.states.empty()) {
+        combined.save(output_file);
+    }
+}
+
 int main(int argc, char** argv) {
     std::string config_path = "config.txt";
 
@@ -111,6 +135,73 @@ int main(int argc, char** argv) {
         play_against_alphazero(model_path, ai_side, num_reads);
 
     }
+    else if (mode == "arena") {
+        int cycles = config.get<int>("cycles", 1, 0);
+        int num_games = config.get<int>("games", 10, 0);
+        bool use_omp = config.get<bool>("openmp", false, 0);
+        int num_reads = config.get<int>("num_reads", 800, 0);
+        float temperature = config.get<float>("temperature", 1.0f, 0);
+        int temperature_cutoff = config.get<int>("temperature_cutoff", 30, 0);
+
+        int epochs = config.get<int>("epochs", 1, 0);
+        double lr = config.get<double>("lr", 1e-4, 0);
+        int lr_step = config.get<int>("lr_step", 100, 0);
+        double gamma = config.get<double>("gamma", 100, 0);
+        int batch_size = config.get<int>("batch_size", 32, 0);
+
+        std::string dataset_dir = std::filesystem::absolute(
+            config.get<std::string>("save", "./datasets/arena/", 0)
+        ).string();
+        std::string dataset_path = std::filesystem::absolute(
+            config.get<std::string>("dataset", "./datasets/combined/arena_dataset.bin", 0)
+        ).string();
+
+        TrainConfig train_cfg(epochs, lr, lr_step, gamma, batch_size);
+
+        std::shared_ptr<TNET> model = std::make_shared<TNET>();
+        if (std::filesystem::exists(model_path)) {
+            try {
+                torch::load(model, model_path);
+            }
+            catch (const c10::Error& e) {
+                std::cerr << "Error loading model: " << e.what() << std::endl;
+            }
+        }
+
+        for (int cycle = 0; cycle < cycles; ++cycle) {
+            std::cout << "Arena cycle " << cycle + 1 << "/" << cycles << std::endl;
+            MCTSSelfPlayConfig sp_cfg(num_games, num_reads, temperature, temperature_cutoff);
+            if (cpus > 1) {
+                if (use_omp) {
+#pragma omp parallel for
+                    for (int i = 0; i < cpus; ++i) {
+                        MCTS_self_play(model_path, dataset_dir, i, true, sp_cfg);
+                    }
+                }
+                else {
+                    std::vector<std::thread> threads;
+                    for (int i = 0; i < cpus; ++i) {
+                        threads.emplace_back(
+                            MCTS_self_play,
+                            model_path, dataset_dir, i, true, sp_cfg
+                        );
+                    }
+                    for (auto& t : threads) {
+                        if (t.joinable()) {
+                            t.join();
+                        }
+                    }
+                }
+            }
+            else {
+                MCTS_self_play(model_path, dataset_dir, 0, false, sp_cfg);
+            }
+
+            combine_datasets(dataset_dir, dataset_path);
+            start_training(model, dataset_path, cpus, train_cfg);
+            torch::save(model, model_path);
+        }
+    }
     else if (mode == "train") {
         int epochs = config.get<int>("epochs", 100, 0);
         double lr = config.get<double>("lr", 1e-4, 0);
@@ -181,7 +272,7 @@ int main(int argc, char** argv) {
     }
     else {
         std::cerr << "Invalid mode: " << mode << std::endl;
-        std::cerr << "Available modes: selfplay, test, train, human" << std::endl;
+        std::cerr << "Available modes: selfplay, test, train, human, arena" << std::endl;
         return 1;
     }
 
