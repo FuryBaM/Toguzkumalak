@@ -17,7 +17,7 @@ public:
 	int action_size;
 	int max_stones;
 	int goal;
-	board boardArray;
+        board boardArray = nullptr;
 	int player;
 	int player1_score;
 	int player2_score;
