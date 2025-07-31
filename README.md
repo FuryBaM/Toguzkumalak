@@ -61,13 +61,11 @@ lr = 1e-4
 lr_step = 10
 gamma = 0.2
 batch_size = 32
-```
 
 Запуск обучения с конфигурацией:
 
 ```bash
 ./Toguzkumalak --config Toguzkumalak/config.ini
-```
 
 ### Генерация датасета
 Чтобы собрать набор данных, запустите режим selfplay:
