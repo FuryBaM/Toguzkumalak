@@ -17,6 +17,7 @@ int main(int argc, char** argv) {
     Config config(config_path);
 
     std::string mode = config.get<std::string>("mode", "selfplay", 0);
+    config.setSection(mode);
     int cpus = config.get<int>("cpus", std::thread::hardware_concurrency(), 0);
     torch::set_num_threads(std::thread::hardware_concurrency()); // или столько, сколько ядер
     torch::set_num_interop_threads(std::thread::hardware_concurrency());

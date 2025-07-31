@@ -35,7 +35,7 @@ cmake --build . --config Release
 
 ## Обучение модели
 1. Подготовьте датасет (пример находится в каталоге `datasets`).
-2. Отредактируйте `Toguzkumalak/train_config.txt` или передайте параметры через командную строку.
+2. Отредактируйте секцию `[train]` в `Toguzkumalak/config.ini` или передайте параметры через командную строку.
 3. Запустите обучение:
 ```bash
 ./Toguzkumalak --mode train --dataset ./datasets/combined/combined_dataset.bin
@@ -44,33 +44,36 @@ cmake --build . --config Release
 
 ## Использование конфигурационных файлов
 Все параметры можно указать в отдельном файле и передать его через `--config путь/к/файлу`.
-По умолчанию используется `config.txt`. Точка входа программы находится в `Toguzkumalak.cpp`.
+По умолчанию используется `config.ini`. Точка входа программы находится в `Toguzkumalak.cpp`.
 
-### Пример `train_config.txt`
-```text
-mode train
-model ./model_data/best.pt
-save ./model_data/best.pt
-dataset ./datasets/combined/combined_dataset.bin
-epochs 100
-cpus 1
-lr 1e-4
-lr_step 10
-gamma 0.2
-batch_size 32
+### Пример `config.ini`
+```ini
+[global]
+mode = train
+cpus = 2
+
+[train]
+model = ./model_data/best.pt
+save = ./model_data/best.pt
+dataset = ./datasets/combined/combined_dataset.bin
+epochs = 100
+lr = 1e-4
+lr_step = 10
+gamma = 0.2
+batch_size = 32
 ```
 
 Запуск обучения с конфигурацией:
 
 ```bash
-./Toguzkumalak --config Toguzkumalak/train_config.txt
+./Toguzkumalak --config Toguzkumalak/config.ini
 ```
 
 ### Генерация датасета
 Чтобы собрать набор данных, запустите режим selfplay:
 
 ```bash
-./Toguzkumalak --config Toguzkumalak/selfplay_config.txt
+./Toguzkumalak --config Toguzkumalak/config.ini
 ```
 Файлы будут сохранены в каталог, указанный в параметре `save`.
 
