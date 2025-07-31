@@ -260,6 +260,7 @@ def simulate_train(model):
     print("Training completed.")
     
 if __name__ == "__main__":
+    pass
     # input_data = torch.tensor([9.000000, 9.000000, 9.000000, 9.000000, 9.000000, 9.000000, 9.000000, 9.000000, 
     #                         9.000000, 9.000000, 9.000000, 9.000000, 9.000000, 9.000000, 9.000000, 9.000000, 
     #                         9.000000, 9.000000, 0.000000, 0.000000, 0.000000], dtype=torch.float32).view(1, -1)
@@ -277,4 +278,3 @@ if __name__ == "__main__":
     # print("After loading weights:")
     # print(output_loaded)
 
-    torch.int16
