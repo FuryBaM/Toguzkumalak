@@ -2,6 +2,7 @@
 #include "mcts_selfplay.h"
 #include "train.h"
 #include "tnet.h"
+#include "arena.h"
 
 int main(int argc, char** argv) {
     std::string config_path = "config.txt";
@@ -17,6 +18,7 @@ int main(int argc, char** argv) {
     Config config(config_path);
 
     std::string mode = config.get<std::string>("mode", "selfplay", 0);
+    config.setSection(mode);
     int cpus = config.get<int>("cpus", std::thread::hardware_concurrency(), 0);
     torch::set_num_threads(std::thread::hardware_concurrency()); // или столько, сколько ядер
     torch::set_num_interop_threads(std::thread::hardware_concurrency());
@@ -175,12 +177,15 @@ int main(int argc, char** argv) {
 		model->eval();
         torch::save(model, save_path);
         std::cout << "Model saved to " << save_path << std::endl;
-		model->save_weights(weights_path);
-		std::cout << "Model weights saved to " << weights_path << std::endl;
+        model->save_weights(weights_path);
+        std::cout << "Model weights saved to " << weights_path << std::endl;
+    }
+    else if (mode == "arena") {
+        run_arena(config);
     }
     else {
         std::cerr << "Invalid mode: " << mode << std::endl;
-        std::cerr << "Available modes: selfplay, test, train, human" << std::endl;
+        std::cerr << "Available modes: selfplay, test, train, human, arena" << std::endl;
         return 1;
     }
 

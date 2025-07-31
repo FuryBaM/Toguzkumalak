@@ -3,20 +3,23 @@
 
 class Config {
 public:
-	explicit Config(const std::string& path) {
-		load(path);
-	}
-	void load(const std::string& path);
-	template<typename T>
-	std::vector<T> get(const std::string& key, const std::vector<T>& default_value) const;
-	template<typename T>
-	T get(const std::string& key, const T& default_value, size_t index) const;
-	void showAll();
+    explicit Config(const std::string& path);
+
+    void load(const std::string& path);
+    void setSection(const std::string& section);
+
+    template<typename T>
+    std::vector<T> get(const std::string& key, const std::vector<T>& default_value) const;
+    template<typename T>
+    T get(const std::string& key, const T& default_value, size_t index) const;
+    void showAll();
+
 private:
-	std::unordered_map<std::string, std::vector<std::string>> data_;
-	Config(const Config&) = delete;
-	Config& operator=(const Config&) = delete;
-	void set(const std::string& key, std::vector<std::string> value);
+    std::unordered_map<std::string, std::unordered_map<std::string, std::vector<std::string>>> sections_;
+    std::string active_section_ = "global";
+    Config(const Config&) = delete;
+    Config& operator=(const Config&) = delete;
+    void set(const std::string& key, std::vector<std::string> value, const std::string& section);
 };
 
 template<typename T>
@@ -118,31 +121,38 @@ inline bool process<bool>(const std::string& value) {
 
 template<typename T>
 inline std::vector<T> Config::get(const std::string& key, const std::vector<T>& default_value) const {
-	std::vector<T> values;
-	if (data_.find(key) != data_.end()) {
-		std::vector<std::string> params = data_.at(key);
-		for (const auto& value : params) {
-			values.push_back(process<T>(value));
-		}
-	}
-	else {
-		values = default_value;
-	}
-	return values;
+    auto find_param = [&](const std::string& section) -> std::vector<std::string> {
+        auto sec_it = sections_.find(section);
+        if (sec_it != sections_.end()) {
+            auto it = sec_it->second.find(key);
+            if (it != sec_it->second.end()) {
+                return it->second;
+            }
+        }
+        return {};
+    };
+
+    std::vector<std::string> params = find_param(active_section_);
+    if (params.empty()) {
+        params = find_param("global");
+    }
+
+    std::vector<T> values;
+    if (!params.empty()) {
+        for (const auto& value : params) {
+            values.push_back(process<T>(value));
+        }
+    } else {
+        values = default_value;
+    }
+    return values;
 }
 
 template<typename T>
 inline T Config::get(const std::string& key, const T& default_value, size_t index) const {
-	if (data_.find(key) != data_.end()) {
-		std::vector<std::string> params = data_.at(key);
-		if (index < params.size()) {
-			return process<T>(params[index]);
-		}
-		else {
-			return default_value;
-		}
-	}
-	else {
-		return default_value;
-	}
+    auto params = get<std::string>(key, {});
+    if (index < params.size()) {
+        return process<T>(params[index]);
+    }
+    return default_value;
 }

@@ -184,6 +184,7 @@
     <ClCompile Include="tnet.cpp" />
     <ClCompile Include="Toguzkumalak.cpp" />
     <ClCompile Include="train.cpp" />
+    <ClCompile Include="arena.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="config.h" />

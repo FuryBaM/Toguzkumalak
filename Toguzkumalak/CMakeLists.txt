@@ -35,6 +35,7 @@ set(SOURCES
     Toguzkumalak.cpp
     tnet.cpp
     config.cpp
+    arena.cpp
 )
 
 # Создаём исполняемый файл

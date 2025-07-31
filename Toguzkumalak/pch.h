@@ -30,6 +30,7 @@
 #include <torch/script.h>
 #include <omp.h>
 #include <future>
+#include <thread>
 #endif
 
 #include "config.h"
