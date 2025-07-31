@@ -40,14 +40,15 @@ inline int process<int>(const std::string& value) {
 		return result;
 	}
 	catch (const std::invalid_argument& e) {
-		std::cerr << e.what() << "\n";
+		std::cerr << "Invalid argument for stoi: '" << value << "'\n";
 		std::exit(1);
 	}
 	catch (const std::out_of_range& e) {
-		std::cerr << e.what() << "\n";
+		std::cerr << "Out of range for stoi: '" << value << "'\n";
 		std::exit(1);
 	}
 }
+
 
 template<>
 inline float process<float>(const std::string& value) {
@@ -152,7 +153,10 @@ template<typename T>
 inline T Config::get(const std::string& key, const T& default_value, size_t index) const {
     auto params = get<std::string>(key, {});
     if (index < params.size()) {
-        return process<T>(params[index]);
-    }
+		return process<T>(params[index]);
+	}
+	else {
+		std::cerr << "Index out of range for key '" << key << "'. Returning default value." << std::endl;
+	}
     return default_value;
 }
